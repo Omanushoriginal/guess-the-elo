@@ -42,24 +42,43 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
 }) => {
   const [whiteGuess, setWhiteGuess] = useState<number>(1400);
   const [blackGuess, setBlackGuess] = useState<number>(1400);
+  const [whiteGuessInput, setWhiteGuessInput] = useState('1400');
+  const [blackGuessInput, setBlackGuessInput] = useState('1400');
   const [isPrivacyLocked, setIsPrivacyLocked] = useState<boolean>(false);
 
   const isMultiplayer = isMultiplayerMode ?? totalPlayersInRound > 1;
   const shouldPassPlayTurn = isMultiplayer && !isOnline;
 
+  const clampGuess = (value: number) => Math.max(100, Math.min(3800, value));
+  const setWhiteValue = (value: number) => {
+    const next = clampGuess(value);
+    setWhiteGuess(next);
+    setWhiteGuessInput(String(next));
+  };
+  const setBlackValue = (value: number) => {
+    const next = clampGuess(value);
+    setBlackGuess(next);
+    setBlackGuessInput(String(next));
+  };
+  const isValidGuessInput = (value: string) => {
+    if (!value.trim()) return false;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 100 && parsed <= 3800;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (disabled || isRevealed || whiteGuess <= 0 || blackGuess <= 0) return;
+    if (disabled || isRevealed || !isValidGuessInput(whiteGuessInput) || !isValidGuessInput(blackGuessInput)) return;
 
     onSubmitPlayerGuess({
-      whiteGuess,
-      blackGuess
+      whiteGuess: Number(whiteGuessInput),
+      blackGuess: Number(blackGuessInput)
     });
 
     if (shouldPassPlayTurn && currentTurnIndex < totalPlayersInRound - 1) {
       setIsPrivacyLocked(true);
-      setWhiteGuess(1400);
-      setBlackGuess(1400);
+      setWhiteValue(1400);
+      setBlackValue(1400);
     }
   };
 
@@ -178,11 +197,11 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
             </div>
 
             {/* Value display and fine-tuning */}
-            <div className="flex items-center justify-center gap-2 py-1">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 py-1">
               <button
                 type="button"
                 disabled={isRevealed || disabled}
-                onClick={() => setWhiteGuess(prev => Math.max(100, prev - 100))}
+                onClick={() => setWhiteValue(whiteGuess - 100)}
                 className="px-2 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40"
               >
                 -100
@@ -190,20 +209,30 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
               <button
                 type="button"
                 disabled={isRevealed || disabled}
-                onClick={() => setWhiteGuess(prev => Math.max(100, prev - 25))}
+                onClick={() => setWhiteValue(whiteGuess - 25)}
                 className="px-2 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40"
               >
                 -25
               </button>
+              {isMultiplayer && <>
+                <button type="button" disabled={isRevealed || disabled} onClick={() => setWhiteValue(whiteGuess - 5)} className="px-1.5 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40">-5</button>
+                <button type="button" disabled={isRevealed || disabled} onClick={() => setWhiteValue(whiteGuess - 1)} className="px-1.5 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40">-1</button>
+              </>}
 
               <div className="relative flex items-center">
                 <input
                   type="number"
                   min="100"
                   max="3800"
-                  value={whiteGuess || ''}
-                  onChange={(e) => setWhiteGuess(Math.max(100, Math.min(3800, parseInt(e.target.value, 10) || 0)))}
+                  value={whiteGuessInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setWhiteGuessInput(value);
+                    const parsed = Number(value);
+                    if (value !== '' && Number.isFinite(parsed)) setWhiteGuess(clampGuess(parsed));
+                  }}
                   disabled={isRevealed || disabled}
+                  step="1"
                   className="w-28 text-center text-2xl font-black font-mono bg-chess-bg text-white border border-chess-accent/60 rounded-xl py-1.5 px-2 focus:outline-none focus:border-chess-accent shadow-inner disabled:opacity-50"
                 />
                 <span className="absolute right-2 text-[10px] text-neutral-500 font-mono uppercase pointer-events-none">
@@ -211,10 +240,14 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
                 </span>
               </div>
 
+              {isMultiplayer && <>
+                <button type="button" disabled={isRevealed || disabled} onClick={() => setWhiteValue(whiteGuess + 1)} className="px-1.5 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40">+1</button>
+                <button type="button" disabled={isRevealed || disabled} onClick={() => setWhiteValue(whiteGuess + 5)} className="px-1.5 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40">+5</button>
+              </>}
               <button
                 type="button"
                 disabled={isRevealed || disabled}
-                onClick={() => setWhiteGuess(prev => Math.min(3800, prev + 25))}
+                onClick={() => setWhiteValue(whiteGuess + 25)}
                 className="px-2 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40"
               >
                 +25
@@ -222,7 +255,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
               <button
                 type="button"
                 disabled={isRevealed || disabled}
-                onClick={() => setWhiteGuess(prev => Math.min(3800, prev + 100))}
+                onClick={() => setWhiteValue(whiteGuess + 100)}
                 className="px-2 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40"
               >
                 +100
@@ -236,7 +269,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
               max="3200"
               step="10"
               value={whiteGuess}
-              onChange={(e) => setWhiteGuess(Number(e.target.value))}
+              onChange={(e) => setWhiteValue(Number(e.target.value))}
               disabled={isRevealed || disabled}
               className="w-full accent-chess-accent h-2 bg-neutral-800 rounded-lg cursor-pointer"
             />
@@ -248,7 +281,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
                   key={tier.value}
                   type="button"
                   disabled={isRevealed || disabled}
-                  onClick={() => setWhiteGuess(tier.value)}
+                  onClick={() => setWhiteValue(tier.value)}
                   className={`px-2 py-0.5 text-[11px] font-mono rounded border transition-all ${
                     Math.abs(whiteGuess - tier.value) < 50
                       ? 'bg-chess-accent/20 border-chess-accent text-chess-accent font-bold'
@@ -274,11 +307,11 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
             </div>
 
             {/* Value display and fine-tuning */}
-            <div className="flex items-center justify-center gap-2 py-1">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 py-1">
               <button
                 type="button"
                 disabled={isRevealed || disabled}
-                onClick={() => setBlackGuess(prev => Math.max(100, prev - 100))}
+                onClick={() => setBlackValue(blackGuess - 100)}
                 className="px-2 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40"
               >
                 -100
@@ -286,20 +319,30 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
               <button
                 type="button"
                 disabled={isRevealed || disabled}
-                onClick={() => setBlackGuess(prev => Math.max(100, prev - 25))}
+                onClick={() => setBlackValue(blackGuess - 25)}
                 className="px-2 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40"
               >
                 -25
               </button>
+              {isMultiplayer && <>
+                <button type="button" disabled={isRevealed || disabled} onClick={() => setBlackValue(blackGuess - 5)} className="px-1.5 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40">-5</button>
+                <button type="button" disabled={isRevealed || disabled} onClick={() => setBlackValue(blackGuess - 1)} className="px-1.5 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40">-1</button>
+              </>}
 
               <div className="relative flex items-center">
                 <input
                   type="number"
                   min="100"
                   max="3800"
-                  value={blackGuess || ''}
-                  onChange={(e) => setBlackGuess(Math.max(100, Math.min(3800, parseInt(e.target.value, 10) || 0)))}
+                  value={blackGuessInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setBlackGuessInput(value);
+                    const parsed = Number(value);
+                    if (value !== '' && Number.isFinite(parsed)) setBlackGuess(clampGuess(parsed));
+                  }}
                   disabled={isRevealed || disabled}
+                  step="1"
                   className="w-28 text-center text-2xl font-black font-mono bg-chess-bg text-white border border-chess-accent/60 rounded-xl py-1.5 px-2 focus:outline-none focus:border-chess-accent shadow-inner disabled:opacity-50"
                 />
                 <span className="absolute right-2 text-[10px] text-neutral-500 font-mono uppercase pointer-events-none">
@@ -307,10 +350,14 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
                 </span>
               </div>
 
+              {isMultiplayer && <>
+                <button type="button" disabled={isRevealed || disabled} onClick={() => setBlackValue(blackGuess + 1)} className="px-1.5 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40">+1</button>
+                <button type="button" disabled={isRevealed || disabled} onClick={() => setBlackValue(blackGuess + 5)} className="px-1.5 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40">+5</button>
+              </>}
               <button
                 type="button"
                 disabled={isRevealed || disabled}
-                onClick={() => setBlackGuess(prev => Math.min(3800, prev + 25))}
+                onClick={() => setBlackValue(blackGuess + 25)}
                 className="px-2 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40"
               >
                 +25
@@ -318,7 +365,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
               <button
                 type="button"
                 disabled={isRevealed || disabled}
-                onClick={() => setBlackGuess(prev => Math.min(3800, prev + 100))}
+                onClick={() => setBlackValue(blackGuess + 100)}
                 className="px-2 py-1 bg-chess-bg hover:bg-neutral-700 text-neutral-300 font-mono text-xs rounded-lg border border-chess-panelBorder transition-colors disabled:opacity-40"
               >
                 +100
@@ -332,7 +379,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
               max="3200"
               step="10"
               value={blackGuess}
-              onChange={(e) => setBlackGuess(Number(e.target.value))}
+              onChange={(e) => setBlackValue(Number(e.target.value))}
               disabled={isRevealed || disabled}
               className="w-full accent-chess-accent h-2 bg-neutral-800 rounded-lg cursor-pointer"
             />
@@ -344,7 +391,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
                   key={tier.value}
                   type="button"
                   disabled={isRevealed || disabled}
-                  onClick={() => setBlackGuess(tier.value)}
+                  onClick={() => setBlackValue(tier.value)}
                   className={`px-2 py-0.5 text-[11px] font-mono rounded border transition-all ${
                     Math.abs(blackGuess - tier.value) < 50
                       ? 'bg-chess-accent/20 border-chess-accent text-chess-accent font-bold'
@@ -367,7 +414,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
 
           <button
             type="submit"
-            disabled={isRevealed || disabled || whiteGuess <= 0 || blackGuess <= 0}
+            disabled={isRevealed || disabled || !isValidGuessInput(whiteGuessInput) || !isValidGuessInput(blackGuessInput)}
             className="w-full sm:w-auto px-8 py-3 rounded-xl bg-chess-accent hover:bg-chess-accentHover active:scale-[0.99] text-white font-bold text-base shadow-lg shadow-chess-accent/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40"
           >
             {shouldPassPlayTurn && currentTurnIndex < totalPlayersInRound - 1 ? (
