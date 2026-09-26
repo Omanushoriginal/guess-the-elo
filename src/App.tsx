@@ -5,7 +5,8 @@ import type {
   MatchConfig, 
   DualGuess, 
   PlayerRoundEvaluation, 
-  PlayerProfile 
+  PlayerProfile,
+  GuessEvaluation
 } from './types/chess';
 import { fetchRandomChessComGame } from './services/chessComApi';
 import { CURATED_GAMES } from './services/curatedGames';
@@ -16,24 +17,46 @@ import { GameHeader } from './components/GameHeader';
 import { RulesModal } from './components/RulesModal';
 import { CustomUserModal } from './components/CustomUserModal';
 import { MatchSetupModal } from './components/MatchSetupModal';
+import { GuessInput } from './components/GuessInput';
+import { ResultModal } from './components/ResultModal';
+import { StartScreen, type RoomSettings } from './components/StartScreen';
+import { RoomLobby } from './components/RoomLobby';
+import { createRoomCode, createRoomPeer, sendRoomMessage, type OnlineRoom, type RoomMessage, type RoomPlayer } from './services/onlineRooms';
+import type { DataConnection, Peer } from 'peerjs';
 import { soundFx } from './services/soundEffects';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 
 const DEFAULT_MATCH_CONFIG: MatchConfig = {
-  mode: 'multiplayer',
-  playerCount: 2,
+  mode: 'solo',
+  playerCount: 1,
   players: [
-    { id: 'player-1', name: 'Player 1', color: '#3b82f6', score: 0, exactHits: 0, within100Hits: 0 },
-    { id: 'player-2', name: 'Player 2', color: '#ef4444', score: 0, exactHits: 0, within100Hits: 0 }
+    { id: 'solo-player', name: 'You', color: '#3b82f6', score: 0, exactHits: 0, within100Hits: 0 }
   ],
   totalRounds: 5,
   roundDurationMinutes: 3,
   instantWinCondition: 'either'
 };
 
+const SOLO_MATCH_CONFIG: MatchConfig = {
+  ...DEFAULT_MATCH_CONFIG,
+  mode: 'solo',
+  playerCount: 1,
+  players: [{ id: 'solo-player', name: 'You', color: '#3b82f6', score: 0, exactHits: 0, within100Hits: 0 }]
+};
+
+const LOCAL_MULTIPLAYER_CONFIG: MatchConfig = {
+  ...DEFAULT_MATCH_CONFIG,
+  mode: 'multiplayer',
+  playerCount: 2,
+  players: [
+    { id: 'player-1', name: 'Player 1', color: '#3b82f6', score: 0, exactHits: 0, within100Hits: 0 },
+    { id: 'player-2', name: 'Player 2', color: '#ef4444', score: 0, exactHits: 0, within100Hits: 0 }
+  ]
+};
+
 export function App() {
   const [currentGame, setCurrentGame] = useState<ChessGame>(CURATED_GAMES[0]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all');
@@ -41,7 +64,20 @@ export function App() {
 
   // Match Configuration & Progression
   const [matchConfig, setMatchConfig] = useState<MatchConfig>(DEFAULT_MATCH_CONFIG);
+  const [screen, setScreen] = useState<'start' | 'room' | 'game'>('start');
+  const [onlineRoom, setOnlineRoom] = useState<OnlineRoom | null>(null);
+  const [roomPlayers, setRoomPlayers] = useState<RoomPlayer[]>([]);
+  const roomPlayersRef = useRef<RoomPlayer[]>([]);
+  roomPlayersRef.current = roomPlayers;
+  const [roomCapacity, setRoomCapacity] = useState(2);
+  const [roomError, setRoomError] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [soloEvaluation, setSoloEvaluation] = useState<GuessEvaluation | null>(null);
+  const [soloScore, setSoloScore] = useState(0);
+  const [hasSubmittedRoomGuess, setHasSubmittedRoomGuess] = useState(false);
   const [currentRound, setCurrentRound] = useState<number>(1);
+  const currentRoundRef = useRef(currentRound);
+  currentRoundRef.current = currentRound;
   const [currentTurnPlayerIndex, setCurrentTurnPlayerIndex] = useState<number>(0);
   const [playerGuesses, setPlayerGuesses] = useState<Record<string, DualGuess>>({});
 
@@ -59,6 +95,10 @@ export function App() {
   const [isRulesOpen, setIsRulesOpen] = useState<boolean>(false);
   const [isCustomUserOpen, setIsCustomUserOpen] = useState<boolean>(false);
   const [isMatchSetupOpen, setIsMatchSetupOpen] = useState<boolean>(false);
+  const peerRef = useRef<Peer | null>(null);
+  const roomConnectionsRef = useRef<Map<string, DataConnection>>(new Map());
+  const roomPlayingRef = useRef(false);
+  const incomingGuessHandlerRef = useRef<(playerId: string, guess: DualGuess) => void>(() => undefined);
 
   const timerRef = useRef<any>(null);
 
@@ -68,6 +108,7 @@ export function App() {
     setError(null);
     setIsRevealed(false);
     setEvaluations(null);
+    setSoloEvaluation(null);
     setPlayerGuesses({});
     setCurrentTurnPlayerIndex(0);
     setTimeRemainingSeconds(matchConfig.roundDurationMinutes * 60);
@@ -86,13 +127,12 @@ export function App() {
     }
   }, [matchConfig.roundDurationMinutes]);
 
-  // Initial load
-  useEffect(() => {
-    loadGame(ratingFilter, customUser);
-  }, []);
-
   // Round Timer Countdown Loop
   useEffect(() => {
+    if (matchConfig.mode === 'solo' || screen !== 'game' || onlineRoom?.role === 'guest') {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
     if (isRevealed || isMatchOver || isTimerPaused || isLoading) {
       if (timerRef.current) clearInterval(timerRef.current);
       return;
@@ -113,7 +153,7 @@ export function App() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isRevealed, isMatchOver, isTimerPaused, isLoading, currentTurnPlayerIndex, playerGuesses]);
+  }, [screen, onlineRoom?.role, matchConfig.mode, isRevealed, isMatchOver, isTimerPaused, isLoading, currentTurnPlayerIndex, playerGuesses]);
 
   // Finalize round evaluation given all submitted guesses
   const evaluateRound = useCallback((submittedGuesses: Record<string, DualGuess>) => {
@@ -242,21 +282,45 @@ export function App() {
   const handlePlayerGuessSubmit = (guess: DualGuess) => {
     if (isRevealed) return;
 
-    const currentPlayer = matchConfig.players[currentTurnPlayerIndex];
-    if (!currentPlayer) return;
+    if (onlineRoom?.role === 'guest') {
+      const connection = roomConnectionsRef.current.get('host');
+      if (!connection?.open) {
+        setRoomError('Connection to the host was lost. Leave the room and try joining again.');
+        return;
+      }
+      sendRoomMessage(connection, { type: 'guess', playerId: onlineRoom.playerId, guess });
+      setPlayerGuesses({ [onlineRoom.playerId]: guess });
+      setHasSubmittedRoomGuess(true);
+      return;
+    }
+
+    const playerId = onlineRoom?.role === 'host'
+      ? matchConfig.players[0]?.id
+      : matchConfig.players[currentTurnPlayerIndex]?.id;
+    if (!playerId) return;
+    addPlayerGuess(playerId, guess);
+  };
+
+  const addPlayerGuess = (playerId: string, guess: DualGuess) => {
+    if (isRevealed) return;
+    if (playerGuesses[playerId]) return;
 
     const updatedGuesses = {
       ...playerGuesses,
-      [currentPlayer.id]: guess
+      [playerId]: guess
     };
     setPlayerGuesses(updatedGuesses);
 
-    if (currentTurnPlayerIndex < matchConfig.players.length - 1) {
+    if (onlineRoom?.role === 'host') {
+      if (matchConfig.players.every(player => updatedGuesses[player.id])) evaluateRound(updatedGuesses);
+    } else if (currentTurnPlayerIndex < matchConfig.players.length - 1) {
       setCurrentTurnPlayerIndex(idx => idx + 1);
     } else {
       evaluateRound(updatedGuesses);
     }
   };
+
+  incomingGuessHandlerRef.current = addPlayerGuess;
 
   // Next round
   const handleNextRound = () => {
@@ -274,6 +338,8 @@ export function App() {
     setCurrentRound(1);
     setIsMatchOver(false);
     setInstantWinner(null);
+    setSoloScore(0);
+    setScreen('game');
     loadGame(ratingFilter, customUser);
   };
 
@@ -289,17 +355,343 @@ export function App() {
     setCurrentRound(1);
     setIsMatchOver(false);
     setInstantWinner(null);
+    setSoloScore(0);
     loadGame(ratingFilter, customUser);
   };
 
-  const activePlayer = matchConfig.players[currentTurnPlayerIndex];
+  const applyRoomSnapshot = (rawSnapshot: unknown) => {
+    const snapshot = rawSnapshot as {
+      matchConfig?: MatchConfig;
+      currentGame?: ChessGame;
+      currentRound?: number;
+      isLoading?: boolean;
+      isRevealed?: boolean;
+      evaluations?: PlayerRoundEvaluation[] | null;
+      instantWinner?: PlayerProfile | null;
+      isMatchOver?: boolean;
+      timeRemainingSeconds?: number;
+      isTimerPaused?: boolean;
+    };
+    if (snapshot.matchConfig) setMatchConfig(snapshot.matchConfig);
+    if (snapshot.currentGame) setCurrentGame(snapshot.currentGame);
+    if (typeof snapshot.currentRound === 'number') {
+      if (snapshot.currentRound !== currentRoundRef.current) {
+        setPlayerGuesses({});
+        setHasSubmittedRoomGuess(false);
+      }
+      currentRoundRef.current = snapshot.currentRound;
+      setCurrentRound(snapshot.currentRound);
+    }
+    if (typeof snapshot.isLoading === 'boolean') setIsLoading(snapshot.isLoading);
+    if (typeof snapshot.isRevealed === 'boolean') setIsRevealed(snapshot.isRevealed);
+    if (snapshot.evaluations !== undefined) setEvaluations(snapshot.evaluations);
+    if (snapshot.instantWinner !== undefined) setInstantWinner(snapshot.instantWinner);
+    if (typeof snapshot.isMatchOver === 'boolean') setIsMatchOver(snapshot.isMatchOver);
+    if (typeof snapshot.timeRemainingSeconds === 'number') setTimeRemainingSeconds(snapshot.timeRemainingSeconds);
+    if (typeof snapshot.isTimerPaused === 'boolean') setIsTimerPaused(snapshot.isTimerPaused);
+    setScreen('game');
+    setOnlineRoom(previous => previous ? { ...previous, status: 'playing' } : previous);
+    roomPlayingRef.current = true;
+  };
+
+  useEffect(() => {
+    if (screen !== 'game' || onlineRoom?.role !== 'host') return;
+    const snapshot = {
+      matchConfig,
+      currentGame,
+      currentRound,
+      isLoading,
+      isRevealed,
+      evaluations,
+      instantWinner,
+      isMatchOver,
+      timeRemainingSeconds,
+      isTimerPaused
+    };
+    for (const connection of roomConnectionsRef.current.values()) {
+      sendRoomMessage(connection, { type: 'sync', snapshot });
+    }
+  }, [screen, onlineRoom?.role, matchConfig, currentGame, currentRound, isLoading, isRevealed, evaluations, instantWinner, isMatchOver, timeRemainingSeconds, isTimerPaused]);
+
+  const handleCreateRoom = (settings: RoomSettings) => {
+    setRoomError(null);
+    setIsConnecting(true);
+    roomPlayingRef.current = false;
+    const code = createRoomCode();
+    const peer = createRoomPeer(code);
+    peerRef.current?.destroy();
+    peerRef.current = peer;
+
+    peer.on('open', (peerId) => {
+      const host: PlayerProfile = {
+        id: peerId,
+        name: settings.playerName,
+        color: '#3b82f6',
+        score: 0,
+        exactHits: 0,
+        within100Hits: 0
+      };
+      const config: MatchConfig = {
+        mode: 'multiplayer',
+        playerCount: settings.playerCount,
+        players: [host],
+        totalRounds: settings.totalRounds,
+        roundDurationMinutes: settings.roundDurationMinutes,
+        instantWinCondition: settings.instantWinCondition
+      };
+      setMatchConfig(config);
+      setRoomCapacity(settings.playerCount);
+      setRoomPlayers([{ id: host.id, name: host.name }]);
+      roomPlayersRef.current = [{ id: host.id, name: host.name }];
+      setOnlineRoom({ role: 'host', code, playerId: host.id, status: 'lobby' });
+      setScreen('room');
+      setIsConnecting(false);
+    });
+
+    peer.on('connection', connection => {
+      connection.on('data', rawMessage => {
+        const message = rawMessage as RoomMessage;
+        if (message.type === 'guess' && message.playerId === connection.peer) {
+          incomingGuessHandlerRef.current(message.playerId, message.guess);
+          return;
+        }
+        if (message.type !== 'join') return;
+        if (roomPlayingRef.current) {
+          sendRoomMessage(connection, { type: 'error', message: 'This match has already started.' });
+          connection.close();
+          return;
+        }
+        if (roomPlayersRef.current.length >= settings.playerCount) {
+          sendRoomMessage(connection, { type: 'error', message: 'This room is full.' });
+          connection.close();
+          return;
+        }
+        const joinedPlayer: PlayerProfile = {
+          id: connection.peer,
+          name: message.name.slice(0, 20) || 'Guest',
+          color: ['#ef4444', '#10b981', '#f59e0b', '#8b5cf6'][roomConnectionsRef.current.size % 4],
+          score: 0,
+          exactHits: 0,
+          within100Hits: 0
+        };
+        roomConnectionsRef.current.set(connection.peer, connection);
+        setMatchConfig(previous => {
+          if (previous.players.some(player => player.id === joinedPlayer.id) || previous.players.length >= settings.playerCount) return previous;
+          return { ...previous, players: [...previous.players, joinedPlayer] };
+        });
+        if (roomPlayersRef.current.some(player => player.id === joinedPlayer.id)) return;
+        const nextPlayers = [...roomPlayersRef.current, { id: joinedPlayer.id, name: joinedPlayer.name }];
+        roomPlayersRef.current = nextPlayers;
+        setRoomPlayers(nextPlayers);
+        const messageToSend: RoomMessage = { type: 'lobby', players: nextPlayers, capacity: settings.playerCount };
+        for (const roomConnection of roomConnectionsRef.current.values()) sendRoomMessage(roomConnection, messageToSend);
+      });
+      connection.on('close', () => {
+        roomConnectionsRef.current.delete(connection.peer);
+        if (roomPlayingRef.current) return;
+        setMatchConfig(previous => ({ ...previous, players: previous.players.filter(player => player.id !== connection.peer) }));
+        const nextPlayers = roomPlayersRef.current.filter(player => player.id !== connection.peer);
+        roomPlayersRef.current = nextPlayers;
+        setRoomPlayers(nextPlayers);
+        for (const roomConnection of roomConnectionsRef.current.values()) {
+          sendRoomMessage(roomConnection, { type: 'lobby', players: nextPlayers, capacity: settings.playerCount });
+        }
+      });
+    });
+
+    peer.on('error', error => {
+      setRoomError(error.type === 'unavailable-id'
+        ? 'That room code is already in use. Try creating the room again.'
+        : `Could not connect to the room service (${error.type}). Check your connection and try again.`);
+      setIsConnecting(false);
+      if (!onlineRoom) peer.destroy();
+    });
+  };
+
+  const handleJoinRoom = (code: string, playerName: string) => {
+    setRoomError(null);
+    setIsConnecting(true);
+    roomPlayingRef.current = false;
+    const peer = createRoomPeer();
+    peerRef.current?.destroy();
+    peerRef.current = peer;
+
+    peer.on('open', playerId => {
+      const info: OnlineRoom = { role: 'guest', code, playerId, status: 'lobby' };
+      setOnlineRoom(info);
+      setRoomPlayers([{ id: playerId, name: playerName }]);
+      roomPlayersRef.current = [{ id: playerId, name: playerName }];
+      setScreen('room');
+      const connection = peer.connect(`gte-${code}`, { reliable: true });
+      roomConnectionsRef.current.set('host', connection);
+      connection.on('open', () => sendRoomMessage(connection, { type: 'join', name: playerName }));
+      connection.on('data', rawMessage => {
+        const message = rawMessage as RoomMessage;
+        if (message.type === 'lobby') {
+          setRoomCapacity(message.capacity);
+          setRoomPlayers(message.players);
+          roomPlayersRef.current = message.players;
+        } else if (message.type === 'start' || message.type === 'sync') {
+          applyRoomSnapshot(message.snapshot);
+        } else if (message.type === 'error') {
+          setRoomError(message.message);
+        }
+      });
+      connection.on('error', () => setRoomError('Could not reach the host. Check the room code and try again.'));
+      connection.on('close', () => {
+        if (roomPlayingRef.current) setRoomError('The host disconnected from this match.');
+      });
+      setIsConnecting(false);
+    });
+    peer.on('error', error => {
+      setRoomError(`Could not join the room (${error.type}). Check the code and your connection.`);
+      setIsConnecting(false);
+      peer.destroy();
+    });
+  };
+
+  const handleStartRoom = async () => {
+    if (onlineRoom?.role !== 'host' || roomPlayers.length < 2) return;
+    roomPlayingRef.current = true;
+    setOnlineRoom(previous => previous ? { ...previous, status: 'playing' } : previous);
+    setScreen('game');
+    setCurrentRound(1);
+    setIsMatchOver(false);
+    setInstantWinner(null);
+    setPlayerGuesses({});
+    setIsRevealed(false);
+    setIsTimerPaused(false);
+    setTimeRemainingSeconds(matchConfig.roundDurationMinutes * 60);
+    await loadGame(ratingFilter, customUser);
+    setTimeRemainingSeconds(matchConfig.roundDurationMinutes * 60);
+  };
+
+  const handleLeaveRoom = () => {
+    roomPlayingRef.current = true;
+    for (const connection of roomConnectionsRef.current.values()) {
+      sendRoomMessage(connection, { type: 'error', message: 'The host closed the room.' });
+      connection.close();
+    }
+    roomConnectionsRef.current.clear();
+    peerRef.current?.destroy();
+    peerRef.current = null;
+    setOnlineRoom(null);
+    setRoomPlayers([]);
+    roomPlayersRef.current = [];
+    setRoomError(null);
+    setMatchConfig(SOLO_MATCH_CONFIG);
+    setScreen('start');
+  };
+
+  const handleStartSolo = () => {
+    setMatchConfig(SOLO_MATCH_CONFIG);
+    setSoloScore(0);
+    setCurrentRound(1);
+    setIsMatchOver(false);
+    setScreen('game');
+    loadGame(ratingFilter, customUser);
+  };
+
+  const handleRestartSolo = () => {
+    setSoloScore(0);
+    setCurrentRound(1);
+    setIsMatchOver(false);
+    loadGame(ratingFilter, customUser);
+  };
+
+  const handleStartLocalMultiplayer = () => {
+    setMatchConfig(LOCAL_MULTIPLAYER_CONFIG);
+    setIsMatchSetupOpen(true);
+  };
+
+  const handleSoloGuess = (guess: number) => {
+    if (isRevealed) return;
+    const actualAverage = currentGame.averageRating;
+    const difference = Math.abs(guess - actualAverage);
+    const isExact = guess === actualAverage;
+    const isWithin100 = !isExact && difference <= 100;
+    const pointsEarned = isExact ? 7 : isWithin100 ? 3 : 0;
+    const feedback = isExact
+      ? `Incredible! Exactly ${actualAverage} Elo! You nailed the rating perfectly.`
+      : isWithin100
+        ? `Spot on! You were only ${difference} Elo away from ${actualAverage}.`
+        : `You guessed ${guess}, but the actual average rating was ${actualAverage} (${difference} Elo off).`;
+    setSoloEvaluation({
+      guess,
+      actualAverage,
+      actualWhite: currentGame.white.rating,
+      actualBlack: currentGame.black.rating,
+      difference,
+      pointsEarned,
+      isExact,
+      isWithin100,
+      feedback
+    });
+    setSoloScore(score => score + pointsEarned);
+    setIsRevealed(true);
+    if (isExact) soundFx.playExact();
+    else if (isWithin100) soundFx.playClose();
+    else soundFx.playMiss();
+    if (currentRound >= matchConfig.totalRounds) setIsMatchOver(true);
+  };
+
+  const handleNextSoloGame = () => {
+    if (currentRound >= matchConfig.totalRounds) {
+      setIsMatchOver(true);
+      return;
+    }
+    setCurrentRound(round => round + 1);
+    loadGame(ratingFilter, customUser);
+  };
+
+  const activePlayer = onlineRoom?.role === 'guest'
+    ? matchConfig.players.find(player => player.id === onlineRoom.playerId)
+    : onlineRoom?.role === 'host'
+      ? matchConfig.players[0]
+      : matchConfig.players[currentTurnPlayerIndex];
+
+  if (screen === 'start') {
+    return <>
+      <StartScreen
+        onSolo={handleStartSolo}
+        onLocalMultiplayer={handleStartLocalMultiplayer}
+        onCreateRoom={handleCreateRoom}
+        onJoinRoom={handleJoinRoom}
+        onOpenRules={() => setIsRulesOpen(true)}
+        roomError={roomError}
+        isConnecting={isConnecting}
+      />
+      <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
+      {isMatchSetupOpen && <MatchSetupModal
+        isOpen
+        onClose={() => setIsMatchSetupOpen(false)}
+        onStartMatch={handleStartMatch}
+        currentConfig={matchConfig}
+      />}
+    </>;
+  }
+
+  if (screen === 'room' && onlineRoom) {
+    return <RoomLobby
+      code={onlineRoom.code}
+      players={roomPlayers}
+      capacity={roomCapacity}
+      isHost={onlineRoom.role === 'host'}
+      isStarting={isLoading}
+      onStart={handleStartRoom}
+      onLeave={handleLeaveRoom}
+      roomError={roomError}
+    />;
+  }
 
   return (
     <div className="min-h-screen bg-chess-bg text-neutral-200 flex flex-col font-sans selection:bg-chess-accent selection:text-white">
       {/* Header */}
       <GameHeader
         ratingFilter={ratingFilter}
+        canConfigure={!onlineRoom}
         onFilterChange={(f) => {
+          if (onlineRoom?.role === 'guest') return;
           setRatingFilter(f);
           setCustomUser(undefined);
           loadGame(f, undefined);
@@ -308,15 +700,26 @@ export function App() {
         currentRound={currentRound}
         timeRemainingSeconds={timeRemainingSeconds}
         isTimerPaused={isTimerPaused}
-        onTogglePauseTimer={() => setIsTimerPaused(p => !p)}
+        onTogglePauseTimer={() => {
+          if (onlineRoom?.role !== 'guest') setIsTimerPaused(p => !p);
+        }}
         isRevealed={isRevealed}
-        onOpenMatchSetup={() => setIsMatchSetupOpen(true)}
+        onOpenMatchSetup={() => {
+          if (!onlineRoom) setIsMatchSetupOpen(true);
+        }}
         onOpenRules={() => setIsRulesOpen(true)}
-        onOpenCustomUser={() => setIsCustomUserOpen(true)}
-        onNewGame={() => loadGame(ratingFilter, customUser)}
+        onOpenCustomUser={() => {
+          if (!onlineRoom) setIsCustomUserOpen(true);
+        }}
+        onNewGame={() => {
+          if (onlineRoom?.role !== 'guest') loadGame(ratingFilter, customUser);
+        }}
         isLoading={isLoading}
+        roomCode={onlineRoom?.code}
+        onLeaveRoom={onlineRoom ? handleLeaveRoom : undefined}
         activeUsername={customUser}
         onClearCustomUser={() => {
+          if (onlineRoom) return;
           setCustomUser(undefined);
           loadGame(ratingFilter, undefined);
         }}
@@ -325,20 +728,25 @@ export function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 flex flex-col gap-6">
         {/* Error notification banner if any */}
-        {error && (
+        {(error || roomError) && (
           <div className="max-w-6xl mx-auto w-full flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+              <span>{roomError || error}</span>
             </div>
             <button
-              onClick={() => setError(null)}
+              onClick={() => { setError(null); setRoomError(null); }}
               className="text-amber-400 hover:text-white font-bold ml-2"
             >
               ✕
             </button>
           </div>
         )}
+
+        {matchConfig.mode === 'solo' && <div className="w-full max-w-6xl mx-auto flex items-center justify-between rounded-xl bg-chess-panel border border-chess-panelBorder px-4 py-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Singleplayer challenge score</span>
+          <span className="text-sm font-black text-amber-300">{soloScore} pts <span className="text-neutral-500 font-medium">• Round {currentRound}/{matchConfig.totalRounds}</span></span>
+        </div>}
 
         {/* Interactive Chessboard Viewer */}
         {isLoading ? (
@@ -354,20 +762,44 @@ export function App() {
           />
         )}
 
-        {/* Dual Guess Input or Multiplayer Reveal Modal */}
+        {/* Singleplayer uses the classic average rating rules; multiplayer guesses both players. */}
         {!isLoading && (
           <div className="w-full">
-            {isRevealed && evaluations ? (
+            {matchConfig.mode === 'solo' && isRevealed && soloEvaluation ? (
+              <ResultModal
+                game={currentGame}
+                evaluation={soloEvaluation}
+                onNextGame={handleNextSoloGame}
+                isGameOver={isMatchOver}
+                onRestart={handleRestartSolo}
+                totalScore={soloScore}
+              />
+            ) : matchConfig.mode === 'solo' ? (
+              <GuessInput onSubmit={handleSoloGuess} isRevealed={isRevealed} disabled={isLoading} />
+            ) : onlineRoom && (
+              (onlineRoom.role === 'guest' && hasSubmittedRoomGuess) ||
+              (onlineRoom.role === 'host' && Boolean(playerGuesses[onlineRoom.playerId]))
+            ) && !isRevealed ? (
+              <div className="w-full max-w-5xl mx-auto bg-chess-panel border border-chess-panelBorder rounded-2xl p-8 text-center shadow-2xl">
+                <h2 className="text-xl font-black text-white">Guess locked in</h2>
+                <p className="mt-2 text-sm text-neutral-400">Waiting for the other players to submit their guesses…</p>
+              </div>
+            ) : isRevealed && evaluations ? (
               <MultiplayerResultModal
                 game={currentGame}
                 evaluations={evaluations}
                 players={matchConfig.players}
                 currentRound={currentRound}
                 totalRounds={matchConfig.totalRounds}
-                onNextRound={handleNextRound}
+                onNextRound={() => {
+                  if (onlineRoom?.role !== 'guest') handleNextRound();
+                }}
                 isMatchOver={isMatchOver}
-                onRestartMatch={handleRestartMatch}
+                onRestartMatch={() => {
+                  if (onlineRoom?.role !== 'guest') handleRestartMatch();
+                }}
                 instantWinner={instantWinner}
+                isOnlineGuest={onlineRoom?.role === 'guest'}
               />
             ) : (
               <DualGuessInput
@@ -376,6 +808,8 @@ export function App() {
                 totalPlayersInRound={matchConfig.players.length}
                 currentTurnIndex={currentTurnPlayerIndex}
                 isRevealed={isRevealed}
+                isOnline={onlineRoom !== null}
+                isMultiplayerMode={matchConfig.mode === 'multiplayer'}
                 disabled={isLoading}
               />
             )}
@@ -386,18 +820,18 @@ export function App() {
       {/* Footer */}
       <footer className="w-full bg-chess-panel border-t border-chess-panelBorder py-4 text-center text-xs text-neutral-500">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Guess The Elo • 2–5 Player Multiplayer & Solo Practice</span>
-          <span>Multiplayer: &le;10 (+7 pts) | &le;25 (+5 pts) | &le;100 (+3 pts) • Instant Win on Exact Hit ⚡</span>
+          <span>Guess The Elo • Singleplayer & Multiplayer</span>
+          <span>{matchConfig.mode === 'solo' ? 'Solo: +7 exact | +3 within 100 of average' : 'Multiplayer: &le;10 (+7) | &le;25 (+5) | &le;100 (+3) • Instant Win ⚡'}</span>
         </div>
       </footer>
 
       {/* Modals */}
-      <MatchSetupModal
+      {isMatchSetupOpen && <MatchSetupModal
         isOpen={isMatchSetupOpen}
         onClose={() => setIsMatchSetupOpen(false)}
         onStartMatch={handleStartMatch}
         currentConfig={matchConfig}
-      />
+      />}
 
       <RulesModal
         isOpen={isRulesOpen}

@@ -1,32 +1,22 @@
-# React + TypeScript + Vite
+# Guess The Elo
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A browser chess-rating guessing game, hosted on GitHub Pages.
 
-Currently, two official plugins are available:
+## Game modes
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Singleplayer:** Guess the average of both players’ ratings. Earn 7 points for an exact guess or 3 points within 100 Elo. Play a five-round challenge without a timer.
+- **Multiplayer:** Guess White and Black separately. Each guess scores 7 points within 10 Elo, 5 within 25, and 3 within 100. Multiplayer includes configurable instant-victory rules and 2–5 player matches.
+- **Pass & Play:** Take turns on one device.
+- **Online rooms:** Create a room, share its six-character code, and have friends join from their own devices. The host starts the match after everyone joins.
 
-## React Compiler
+Online rooms use PeerJS for signaling and WebRTC for peer-to-peer game updates. Players need an internet connection. Some networks block direct peer connections; this static GitHub Pages setup does not include a TURN relay.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Development
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm ci
+npm run dev
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+GitHub Actions builds the app and deploys the `dist` folder to GitHub Pages when changes are pushed to `main`.

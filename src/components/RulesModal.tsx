@@ -35,7 +35,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           <div>
             <h4 className="text-sm font-black text-amber-300">⚡ INSTANT VICTORY RULE</h4>
             <p className="text-xs text-neutral-200 mt-0.5">
-              In multiplayer, an exact rating guess can trigger an <strong>Instant Match Victory</strong>. Choose whether this requires either rating, both ratings, White only, or Black only in match setup. Solo scoring and play are unchanged.
+              Multiplayer only: an exact rating guess can trigger an <strong>Instant Match Victory</strong>. Choose either rating, both ratings, White only, Black only, or disable it. Singleplayer has no instant-victory rule.
             </p>
           </div>
         </div>
@@ -43,15 +43,15 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
         {/* Scoring Rules (Max 14 Pts) */}
         <div className="space-y-3 mb-5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-            Scoring Rules (Max 14 Points Per Round):
+            Separate Rules by Mode
           </h3>
 
           <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
             <Trophy className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-xs font-bold text-amber-300">Exact Rating — 7 Points Each</h4>
+              <h4 className="text-xs font-bold text-amber-300">Singleplayer — Guess the Average</h4>
               <p className="text-[11px] text-neutral-300 mt-0.5">
-                In multiplayer, guesses within 10 Elo earn +7 points per player. Solo exact guesses still earn +7 points.
+                Guess the average of White and Black. Exact average earns +7; within 100 Elo earns +3. Five rounds, no timer.
               </p>
             </div>
           </div>
@@ -59,9 +59,9 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
             <Award className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-xs font-bold text-emerald-300">Multiplayer Tiered Points</h4>
+              <h4 className="text-xs font-bold text-emerald-300">Multiplayer — Guess Both Ratings</h4>
               <p className="text-[11px] text-neutral-300 mt-0.5">
-                Multiplayer guesses within 25 Elo earn +5; within 100 Elo earn +3. Solo guesses within 100 Elo earn +3.
+                Score each player separately: within 10 Elo = +7, within 25 = +5, within 100 = +3. Maximum +14 per round.
               </p>
             </div>
           </div>
@@ -85,7 +85,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           <div className="grid grid-cols-2 gap-2 text-xs text-neutral-300">
             <div className="flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-amber-400" />
-              <span><strong>2 to 5 Players</strong> Pass & Play</span>
+              <span><strong>2 to 5 Players</strong> online rooms or Pass & Play</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Trophy className="w-3.5 h-3.5 text-chess-accent" />

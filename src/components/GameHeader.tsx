@@ -25,6 +25,9 @@ interface GameHeaderProps {
   onOpenCustomUser: () => void;
   onNewGame: () => void;
   isLoading: boolean;
+  canConfigure?: boolean;
+  roomCode?: string;
+  onLeaveRoom?: () => void;
   activeUsername?: string;
   onClearCustomUser?: () => void;
 }
@@ -52,6 +55,9 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   onOpenCustomUser,
   onNewGame,
   isLoading,
+  canConfigure = true,
+  roomCode,
+  onLeaveRoom,
   activeUsername,
   onClearCustomUser
 }) => {
@@ -74,27 +80,27 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
                 </span>
               </div>
               <p className="text-xs text-neutral-400 mt-0.5 hidden sm:block">
-                Predict White & Black Elo • Instant Win on Exact Hit
+                {matchConfig.mode === 'solo' ? 'Guess the average Elo • Classic scoring' : 'Guess both player ratings • Multiplayer tiers'}
               </p>
             </div>
           </div>
 
           {/* Mobile Right Controls */}
           <div className="flex items-center gap-1.5 md:hidden">
-            <RoundTimer
+            {matchConfig.mode === 'multiplayer' && <RoundTimer
               timeRemainingSeconds={timeRemainingSeconds}
               totalDurationSeconds={matchConfig.roundDurationMinutes * 60}
               isPaused={isTimerPaused}
               onTogglePause={onTogglePauseTimer}
               isRevealed={isRevealed}
-            />
-            <button
+            />}
+            {canConfigure && <button
               onClick={onOpenMatchSetup}
               className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-chess-panelLight transition-colors"
               title="Match Settings"
             >
               <Settings className="w-5 h-5" />
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -107,7 +113,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
           </div>
 
           {/* Timer */}
-          <div className="hidden md:block">
+          {matchConfig.mode === 'multiplayer' && <div className="hidden md:block">
             <RoundTimer
               timeRemainingSeconds={timeRemainingSeconds}
               totalDurationSeconds={matchConfig.roundDurationMinutes * 60}
@@ -115,12 +121,13 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
               onTogglePause={onTogglePauseTimer}
               isRevealed={isRevealed}
             />
-          </div>
+          </div>}
         </div>
 
         {/* Right: Filters & Match Configuration Controls */}
         <div className="flex flex-wrap items-center gap-2 justify-center md:justify-end w-full md:w-auto">
           {/* Active Custom User Badge */}
+          {roomCode && onLeaveRoom && <button onClick={onLeaveRoom} className="px-2.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">Room {roomCode} · Leave</button>}
           {activeUsername && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-medium">
               <span>Player: <strong>{activeUsername}</strong></span>
@@ -137,13 +144,13 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
           )}
 
           {/* Match Setup Button */}
-          <button
+          {canConfigure && <button
             onClick={onOpenMatchSetup}
             className="px-3 py-2 bg-chess-panelLight hover:bg-neutral-700 text-white text-xs font-bold rounded-xl border border-chess-panelBorder flex items-center gap-1.5 transition-colors shadow-sm"
           >
             <Settings className="w-3.5 h-3.5 text-amber-400" />
             <span>Match Setup ({matchConfig.totalRounds}R • {matchConfig.roundDurationMinutes}m)</span>
-          </button>
+          </button>}
 
           {/* Rating Tier Filter */}
           <div className="relative">

@@ -22,6 +22,7 @@ interface MultiplayerResultModalProps {
   isMatchOver: boolean;
   onRestartMatch: () => void;
   instantWinner: PlayerProfile | null;
+  isOnlineGuest?: boolean;
 }
 
 export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
@@ -33,7 +34,8 @@ export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
   onNextRound,
   isMatchOver,
   onRestartMatch,
-  instantWinner
+  instantWinner,
+  isOnlineGuest = false,
 }) => {
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
   const matchWinner = instantWinner || (isMatchOver ? sortedPlayers[0] : null);
@@ -281,6 +283,13 @@ export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
       )}
 
       {/* Footer Navigation Buttons */}
+      {isOnlineGuest ? (
+        <p className="pt-2 text-center text-sm text-neutral-400">
+          {instantWinner || isMatchOver
+            ? 'The host ended the match. Leave the room when you are ready.'
+            : `Waiting for the host to start round ${currentRound + 1}…`}
+        </p>
+      ) : (
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
         {game.url ? (
           <a
@@ -314,6 +323,7 @@ export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };

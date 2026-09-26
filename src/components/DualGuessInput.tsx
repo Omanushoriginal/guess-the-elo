@@ -15,6 +15,8 @@ interface DualGuessInputProps {
   totalPlayersInRound: number;
   currentTurnIndex: number;
   isRevealed: boolean;
+  isOnline?: boolean;
+  isMultiplayerMode?: boolean;
   disabled?: boolean;
 }
 
@@ -34,13 +36,16 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
   totalPlayersInRound,
   currentTurnIndex,
   isRevealed,
+  isOnline = false,
+  isMultiplayerMode,
   disabled = false
 }) => {
   const [whiteGuess, setWhiteGuess] = useState<number>(1400);
   const [blackGuess, setBlackGuess] = useState<number>(1400);
   const [isPrivacyLocked, setIsPrivacyLocked] = useState<boolean>(false);
 
-  const isMultiplayer = totalPlayersInRound > 1;
+  const isMultiplayer = isMultiplayerMode ?? totalPlayersInRound > 1;
+  const shouldPassPlayTurn = isMultiplayer && !isOnline;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +56,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
       blackGuess
     });
 
-    if (isMultiplayer && currentTurnIndex < totalPlayersInRound - 1) {
+    if (shouldPassPlayTurn && currentTurnIndex < totalPlayersInRound - 1) {
       setIsPrivacyLocked(true);
       setWhiteGuess(1400);
       setBlackGuess(1400);
@@ -107,13 +112,13 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
                   {activePlayer && isMultiplayer ? (
                     <span>
                       <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style={{ backgroundColor: activePlayer.color }} />
-                      {activePlayer.name}'s Guess Turn
+                      {isOnline ? `${activePlayer.name}'s Guess` : `${activePlayer.name}'s Guess Turn`}
                     </span>
                   ) : (
                     'Guess Both Player Ratings'
                   )}
                 </h3>
-                {isMultiplayer && (
+                {isMultiplayer && !isOnline && (
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-chess-panelLight text-neutral-300 border border-chess-panelBorder">
                     Turn {currentTurnIndex + 1} of {totalPlayersInRound}
                   </span>
@@ -365,7 +370,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
             disabled={isRevealed || disabled || whiteGuess <= 0 || blackGuess <= 0}
             className="w-full sm:w-auto px-8 py-3 rounded-xl bg-chess-accent hover:bg-chess-accentHover active:scale-[0.99] text-white font-bold text-base shadow-lg shadow-chess-accent/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40"
           >
-            {isMultiplayer && currentTurnIndex < totalPlayersInRound - 1 ? (
+            {shouldPassPlayTurn && currentTurnIndex < totalPlayersInRound - 1 ? (
               <>
                 <UserCheck className="w-5 h-5" />
                 <span>Lock In & Pass to Next Player</span>
