@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trophy, Award, Target, HelpCircle, Lightbulb } from 'lucide-react';
+import { X, Trophy, Award, Target, HelpCircle, Lightbulb, Flame, Users, Clock } from 'lucide-react';
 
 interface RulesModalProps {
   isOpen: boolean;
@@ -10,8 +10,8 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-chess-panel border border-chess-panelBorder rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+      <div className="w-full max-w-lg bg-chess-panel border border-chess-panelBorder rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -20,60 +20,86 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           <X className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2">
           <HelpCircle className="w-6 h-6 text-chess-accent" />
           <h2 className="text-xl font-bold text-white">How To Play Guess The Elo</h2>
         </div>
 
-        <p className="text-sm text-neutral-300 mb-5">
-          Watch the chess game unfold move by move from Chess.com database, analyze player moves, tactical choices, and blunders to guess the game's average Elo rating!
+        <p className="text-xs text-neutral-300 mb-5">
+          Analyze real Chess.com games move-by-move, evaluate piece coordination, openings, and blunders to guess both player ratings!
         </p>
 
-        {/* Scoring Rules */}
-        <div className="space-y-3 mb-6">
+        {/* INSTANT VICTORY HERO BANNER */}
+        <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-600/10 to-amber-500/20 border-2 border-amber-400/80 mb-5 flex items-start gap-3">
+          <Flame className="w-7 h-7 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+          <div>
+            <h4 className="text-sm font-black text-amber-300">⚡ INSTANT VICTORY RULE</h4>
+            <p className="text-xs text-neutral-200 mt-0.5">
+              If any player guesses a player's Elo <strong>on the head</strong> (exact rating match), they achieve an <strong>Instant Sudden-Death Match Victory</strong> on the spot!
+            </p>
+          </div>
+        </div>
+
+        {/* Scoring Rules (Max 14 Pts) */}
+        <div className="space-y-3 mb-5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+            Scoring Rules (Max 14 Points Per Round):
+          </h3>
+
           <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-            <Trophy className="w-6 h-6 text-amber-400 shrink-0 mt-0.5" />
+            <Trophy className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-bold text-amber-300">Exact Rating Guess — 7 Points</h4>
-              <p className="text-xs text-neutral-300 mt-0.5">
-                If you guess the exact average rating of the game on the nose, you earn the maximum 7 points!
+              <h4 className="text-xs font-bold text-amber-300">Exact Rating — 7 Points Each</h4>
+              <p className="text-[11px] text-neutral-300 mt-0.5">
+                Exact White Guess = +7 pts • Exact Black Guess = +7 pts (triggers Instant Win!).
               </p>
             </div>
           </div>
 
           <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-            <Award className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
+            <Award className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-bold text-emerald-300">Within 100 Elo — 3 Points</h4>
-              <p className="text-xs text-neutral-300 mt-0.5">
-                If your guess is within ±100 points of the actual average rating (e.g. ±1 to ±100), you earn 3 points!
+              <h4 className="text-xs font-bold text-emerald-300">Within 100 Elo ($\le 100$) — 3 Points Each</h4>
+              <p className="text-[11px] text-neutral-300 mt-0.5">
+                If your guess is within $\pm 100$ points of actual rating, earn +3 pts for White and +3 pts for Black.
               </p>
             </div>
           </div>
 
           <div className="flex items-start gap-3 p-3 rounded-xl bg-neutral-800/80 border border-neutral-700">
-            <Target className="w-6 h-6 text-neutral-400 shrink-0 mt-0.5" />
+            <Target className="w-5 h-5 text-neutral-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-bold text-neutral-300">&gt; 100 Elo Difference — 0 Points</h4>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                Guesses more than 100 points away score 0 points.
+              <h4 className="text-xs font-bold text-neutral-300">&gt; 100 Elo Off — 0 Points</h4>
+              <p className="text-[11px] text-neutral-400 mt-0.5">
+                Guesses more than 100 points off score 0 points for that player.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Pro Tips */}
-        <div className="p-3.5 rounded-xl bg-chess-bg border border-chess-panelBorder mb-6">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-chess-accent mb-2">
-            <Lightbulb className="w-4 h-4" />
-            <span>Elo Estimation Clues</span>
+        {/* Match Customization Features */}
+        <div className="p-3.5 rounded-xl bg-chess-bg border border-chess-panelBorder mb-5 space-y-2">
+          <div className="text-xs font-bold uppercase tracking-wider text-chess-accent">
+            Match Options:
           </div>
-          <ul className="text-xs text-neutral-400 space-y-1.5 list-disc list-inside">
-            <li><strong className="text-neutral-200">&lt; 800 Elo:</strong> Early queen attacks (Wayward Queen), 1-move hung pieces, missing simple captures.</li>
-            <li><strong className="text-neutral-200">1000 - 1500 Elo:</strong> Solid opening knowledge, basic 2-move tactics, occasional endgame blunders.</li>
-            <li><strong className="text-neutral-200">1800 - 2200 Elo:</strong> Deep tactical awareness, positional pawn structures, king safety mastery.</li>
-            <li><strong className="text-neutral-200">2500+ GM:</strong> Flawless theoretical openings, precise conversion of small advantages.</li>
-          </ul>
+          <div className="grid grid-cols-2 gap-2 text-xs text-neutral-300">
+            <div className="flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-amber-400" />
+              <span><strong>2 to 5 Players</strong> Pass & Play</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Trophy className="w-3.5 h-3.5 text-chess-accent" />
+              <span><strong>5 to 10 Rounds</strong> per Match</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-cyan-400" />
+              <span><strong>2 to 10 Mins</strong> Round Timer</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Lightbulb className="w-3.5 h-3.5 text-yellow-400" />
+              <span>Live Leaderboards</span>
+            </div>
+          </div>
         </div>
 
         <button

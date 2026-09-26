@@ -35,6 +35,50 @@ export interface MoveHistoryItem {
   moveNumber: number;
 }
 
+export type RatingFilter = 'all' | 'beginner' | 'intermediate' | 'advanced' | 'master' | 'gm';
+
+export interface PlayerProfile {
+  id: string;
+  name: string;
+  color: string;
+  score: number;
+  exactHits: number;
+  within100Hits: number;
+}
+
+export interface DualGuess {
+  whiteGuess: number;
+  blackGuess: number;
+}
+
+export interface PlayerRoundEvaluation {
+  playerId: string;
+  playerName: string;
+  playerColor: string;
+  whiteGuess: number;
+  blackGuess: number;
+  whiteActual: number;
+  blackActual: number;
+  whiteDiff: number;
+  blackDiff: number;
+  whiteScore: number;
+  blackScore: number;
+  totalScore: number; // Max 14 pts
+  isWhiteExact: boolean;
+  isBlackExact: boolean;
+  isWhiteWithin100: boolean;
+  isBlackWithin100: boolean;
+  isInstantVictory: boolean; // Exact Elo hit triggers instant match victory!
+}
+
+export interface MatchConfig {
+  mode: 'solo' | 'multiplayer';
+  playerCount: number; // 1 to 5
+  players: PlayerProfile[];
+  totalRounds: number; // 5 to 10
+  roundDurationMinutes: number; // 2 to 10
+}
+
 export interface GuessEvaluation {
   guess: number;
   actualAverage: number;
@@ -63,5 +107,3 @@ export interface GameStats {
     difference: number;
   }[];
 }
-
-export type RatingFilter = 'all' | 'beginner' | 'intermediate' | 'advanced' | 'master' | 'gm';
