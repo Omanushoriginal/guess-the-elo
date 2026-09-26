@@ -31,12 +31,25 @@ export type PublicRoom = {
 
 type DirectoryRoom = PublicRoom & { ownerUid: string; updatedAt: number };
 
+// Firebase web app config is public client configuration. Rules in database.rules.json
+// protect room listings; never put Firebase service account credentials in this file.
+const defaultFirebaseConfig = {
+  apiKey: 'AIzaSyDM3k-ap2o3DufUX_4Q0maYb43zJoFotFE',
+  authDomain: 'guess-the-elo-650e9.firebaseapp.com',
+  databaseURL: 'https://guess-the-elo-650e9-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'guess-the-elo-650e9',
+  storageBucket: 'guess-the-elo-650e9.firebasestorage.app',
+  messagingSenderId: '335365203530',
+  appId: '1:335365203530:web:11aabb131360071c33e8b3',
+  measurementId: 'G-21HZMC3PR2'
+};
+
 let firebaseAppPromise: Promise<FirebaseApp | null> | undefined;
 let anonymousUserPromise: Promise<User> | null = null;
 
 function readFirebaseConfig(): Record<string, unknown> | null {
   const rawConfig = import.meta.env.VITE_FIREBASE_CONFIG as string | undefined;
-  if (!rawConfig) return null;
+  if (!rawConfig) return defaultFirebaseConfig;
   try {
     const config = JSON.parse(rawConfig) as Record<string, unknown>;
     if (!config.apiKey || !config.databaseURL || !config.projectId || !config.appId) {
