@@ -96,7 +96,7 @@ Error generating stack: `+n.message+`
 [BlackElo "3110"]
 [TimeControl "180"]
 
-1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 6. h3 e5 7. Nde2 h5 8. g3 Be6 9. Bg2 Nbd7 10. a4 Be7 11. a5 Rc8 12. Be3 Qc7 13. O-O O-O 14. f4 Rfe8 15. Rf2 Bc4 16. f5 b5 17. axb6 Nxb6 18. Nc1 d5 19. exd5 Bc5 20. Bxc5 Qxc5 21. Nb3 Bxb3 22. cxb3 e4 23. Rxa6 Nbxd5 24. Nxd5 Nxd5 25. b4 Nxb4 26. Rd6 Nd3 27. Rxd3 exd3 28. Qxd3 Re1+ 29. Bf1 Rb8 30. Qd2 Re3 31. Kh2 Qe5 32. Rg2 h4 33. formation 34. Bc4 hxg3+ 35. Rxg3 Rxg3 1-0`},{id:"game-beginner-2",white:{username:"ChessNewbie",rating:710,result:"resigned"},black:{username:"RookMaster77",rating:690,result:"win"},averageRating:700,timeControl:"600",timeClass:"rapid",url:"https://www.chess.com/game/live/6",date:"2024-02-11",rated:!0,rules:"chess",fen:xn,pgn:`[Event "Live Chess"]
+1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 6. h3 e5 7. Nde2 h5 8. g3 Be6 9. Bg2 Nbd7 10. a4 Be7 11. a5 Rc8 12. Be3 Qc7 13. O-O O-O 14. f4 Rfe8 15. Rf2 Bc4 16. f5 b5 17. axb6 Nxb6 18. Nc1 d5 19. exd5 Bc5 20. Bxc5 Qxc5 21. Nb3 Bxb3 22. cxb3 e4 23. Rxa6 Nbxd5 24. Nxd5 Nxd5 25. b4 Nxb4 26. Rd6 Nd3 27. Rxd3 exd3 28. Qxd3 Re1+ 29. Bf1 Rb8 30. Qd2 Re3 31. Kh2 Qe5 32. Rg2 h4 33. Qf2 Rbb3 34. Bc4 hxg3+ 35. Rxg3 Rxg3 1-0`},{id:"game-beginner-2",white:{username:"ChessNewbie",rating:710,result:"resigned"},black:{username:"RookMaster77",rating:690,result:"win"},averageRating:700,timeControl:"600",timeClass:"rapid",url:"https://www.chess.com/game/live/6",date:"2024-02-11",rated:!0,rules:"chess",fen:xn,pgn:`[Event "Live Chess"]
 [Site "Chess.com"]
 [Date "2024.02.11"]
 [White "ChessNewbie"]
