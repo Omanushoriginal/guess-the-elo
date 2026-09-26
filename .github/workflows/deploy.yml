@@ -34,6 +34,8 @@ jobs:
         run: npm ci
 
       - name: Build project
+        env:
+          VITE_FIREBASE_CONFIG: ${{ vars.VITE_FIREBASE_CONFIG }}
         run: npm run build
 
       - name: Setup Pages

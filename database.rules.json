@@ -1,0 +1,38 @@
+{
+  "rules": {
+    "publicRooms": {
+      ".read": "auth != null",
+      "$roomCode": {
+        ".write": "auth != null && ((!data.exists() && newData.child('ownerUid').val() === auth.uid) || (data.exists() && data.child('ownerUid').val() === auth.uid && newData.child('ownerUid').val() === auth.uid))",
+        ".validate": "newData.hasChildren(['code', 'hostName', 'playerCount', 'capacity', 'status', 'createdAt', 'updatedAt', 'ownerUid'])",
+        "code": {
+          ".validate": "newData.isString() && newData.val() === $roomCode"
+        },
+        "hostName": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20"
+        },
+        "playerCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5 && newData.val() <= newData.parent().child('capacity').val()"
+        },
+        "capacity": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 5"
+        },
+        "status": {
+          ".validate": "newData.val() === 'lobby' || newData.val() === 'playing'"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "ownerUid": {
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

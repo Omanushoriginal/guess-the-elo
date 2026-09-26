@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Crown, DoorOpen, Plus, Users, UserRound } from 'lucide-react';
 import type { InstantWinCondition } from '../types/chess';
+import type { PublicRoom } from '../services/onlineRooms';
 
 export type RoomSettings = {
   playerName: string;
@@ -8,6 +9,7 @@ export type RoomSettings = {
   totalRounds: number;
   roundDurationMinutes: number;
   instantWinCondition: InstantWinCondition;
+  visibility: 'public' | 'private';
 };
 
 interface StartScreenProps {
@@ -15,15 +17,19 @@ interface StartScreenProps {
   onLocalMultiplayer: () => void;
   onCreateRoom: (settings: RoomSettings) => void;
   onJoinRoom: (code: string, playerName: string) => void;
+  onBrowseRooms: () => void;
+  publicRooms: PublicRoom[];
+  publicRoomsError?: string | null;
+  publicRoomsLoading?: boolean;
   onOpenRules: () => void;
   roomError?: string | null;
   isConnecting?: boolean;
 }
 
-type Screen = 'home' | 'multiplayer' | 'create' | 'join';
+type Screen = 'home' | 'multiplayer' | 'create' | 'join' | 'browse';
 
 export const StartScreen: React.FC<StartScreenProps> = ({
-  onSolo, onLocalMultiplayer, onCreateRoom, onJoinRoom, onOpenRules, roomError, isConnecting = false
+  onSolo, onLocalMultiplayer, onCreateRoom, onJoinRoom, onBrowseRooms, publicRooms, publicRoomsError, publicRoomsLoading = false, onOpenRules, roomError, isConnecting = false
 }) => {
   const [screen, setScreen] = useState<Screen>('home');
   const [playerName, setPlayerName] = useState('');
@@ -31,6 +37,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   const [totalRounds, setTotalRounds] = useState(5);
   const [roundDurationMinutes, setRoundDurationMinutes] = useState(3);
   const [instantWinCondition, setInstantWinCondition] = useState<InstantWinCondition>('either');
+  const [visibility, setVisibility] = useState<'public' | 'private'>('private');
   const [roomCode, setRoomCode] = useState('');
 
   const goBack = () => {
@@ -86,7 +93,24 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                 <DoorOpen className="w-7 h-7 text-chess-accent mb-3" /><h3 className="font-extrabold text-white">Join a room</h3><p className="text-xs text-neutral-400 mt-1">Enter a friend's code to join their match.</p>
               </button>
             </div>
+            <button onClick={() => { setScreen('browse'); onBrowseRooms(); }} className="mt-4 w-full rounded-xl px-4 py-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/30 text-sm font-bold text-amber-200">Browse public rooms</button>
             <button onClick={onLocalMultiplayer} className="mt-4 w-full rounded-xl px-4 py-3 bg-chess-panelLight hover:bg-neutral-700 border border-chess-panelBorder text-sm font-bold text-neutral-200">Pass & Play on this device</button>
+          </>}
+
+          {screen === 'browse' && <>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300 mb-2">Public rooms</p>
+            <h2 className="text-3xl font-black text-white mb-3">Find a match</h2>
+            <p className="text-sm text-neutral-400 mb-5">Choose an open room to join. Private rooms only appear when you enter their code.</p>
+            {publicRoomsLoading && <p className="text-sm text-neutral-400">Loading rooms…</p>}
+            {publicRoomsError && <p role="alert" className="text-sm text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 mb-3">{publicRoomsError}</p>}
+            {!publicRoomsLoading && !publicRoomsError && publicRooms.length === 0 && <p className="text-sm text-neutral-400 rounded-xl bg-chess-bg p-4">No public rooms are available right now.</p>}
+            <div className="space-y-2 max-h-72 overflow-auto">
+              {publicRooms.map(room => <button key={room.code} disabled={!playerName.trim() || isConnecting} onClick={() => onJoinRoom(room.code, playerName.trim())} className="w-full rounded-xl border border-chess-panelBorder bg-chess-bg hover:border-amber-400 p-4 text-left disabled:opacity-50">
+                <div className="flex items-center justify-between"><span className="font-bold text-white">{room.hostName}’s room</span><span className="font-mono text-amber-300">{room.playerCount}/{room.capacity}</span></div>
+                <div className="text-xs text-neutral-400 mt-1">Code {room.code} · {room.capacity - room.playerCount} {room.capacity - room.playerCount === 1 ? 'seat' : 'seats'} open</div>
+              </button>)}
+            </div>
+            <label className="block text-xs font-bold text-neutral-300 mt-5">Your name<input value={playerName} onChange={e => setPlayerName(e.target.value)} maxLength={20} placeholder="Enter your name to join" className="mt-2 w-full rounded-xl bg-chess-bg border border-chess-panelBorder px-4 py-3 text-sm text-white outline-none focus:border-chess-accent" /></label>
           </>}
 
           {screen === 'create' && <>
@@ -102,9 +126,16 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                 <label className="text-xs font-bold text-neutral-300">Rounds<select value={totalRounds} onChange={e => setTotalRounds(Number(e.target.value))} className="mt-2 w-full rounded-xl bg-chess-bg border border-chess-panelBorder px-3 py-3 text-white">{[5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
                 <label className="text-xs font-bold text-neutral-300">Minutes per round<select value={roundDurationMinutes} onChange={e => setRoundDurationMinutes(Number(e.target.value))} className="mt-2 w-full rounded-xl bg-chess-bg border border-chess-panelBorder px-3 py-3 text-white">{[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
               </div>
+              <fieldset>
+                <legend className="text-xs font-bold text-neutral-300 mb-2">Room visibility</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setVisibility('private')} className={`rounded-xl border py-3 text-sm font-bold ${visibility === 'private' ? 'bg-chess-accent border-chess-accent text-white' : 'bg-chess-bg border-chess-panelBorder text-neutral-400'}`}>Private · code only</button>
+                  <button type="button" onClick={() => setVisibility('public')} className={`rounded-xl border py-3 text-sm font-bold ${visibility === 'public' ? 'bg-amber-500 border-amber-500 text-black' : 'bg-chess-bg border-chess-panelBorder text-neutral-400'}`}>Public · listed</button>
+                </div>
+              </fieldset>
               <label className="block text-xs font-bold text-neutral-300">Instant victory rule<select value={instantWinCondition} onChange={e => setInstantWinCondition(e.target.value as InstantWinCondition)} className="mt-2 w-full rounded-xl bg-chess-bg border border-chess-panelBorder px-3 py-3 text-white"><option value="either">Exact guess on either player</option><option value="both">Exact guesses on both players</option><option value="white_only">Exact guess on White only</option><option value="black_only">Exact guess on Black only</option><option value="disabled">Disabled</option></select></label>
               {roomError && <p role="alert" className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl p-3">{roomError}</p>}
-              <button disabled={!playerName.trim() || isConnecting} onClick={() => onCreateRoom({ playerName: playerName.trim(), playerCount, totalRounds, roundDurationMinutes, instantWinCondition })} className="w-full rounded-xl px-4 py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-black disabled:opacity-50">{isConnecting ? 'Creating room…' : 'Create room'}</button>
+              <button disabled={!playerName.trim() || isConnecting} onClick={() => onCreateRoom({ playerName: playerName.trim(), playerCount, totalRounds, roundDurationMinutes, instantWinCondition, visibility })} className="w-full rounded-xl px-4 py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-black disabled:opacity-50">{isConnecting ? 'Creating room…' : 'Create room'}</button>
             </div>
           </>}
 

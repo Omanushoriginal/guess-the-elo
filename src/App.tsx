@@ -21,7 +21,7 @@ import { GuessInput } from './components/GuessInput';
 import { ResultModal } from './components/ResultModal';
 import { StartScreen, type RoomSettings } from './components/StartScreen';
 import { RoomLobby } from './components/RoomLobby';
-import { createRoomCode, createRoomPeer, sendRoomMessage, type OnlineRoom, type RoomMessage, type RoomPlayer } from './services/onlineRooms';
+import { createRoomCode, createRoomPeer, isRoomDirectoryConfigured, publishPublicRoom, sendRoomMessage, subscribePublicRooms, unpublishPublicRoom, updatePublicRoom, type OnlineRoom, type PublicRoom, type RoomMessage, type RoomPlayer } from './services/onlineRooms';
 import type { DataConnection, Peer } from 'peerjs';
 import { soundFx } from './services/soundEffects';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
@@ -71,6 +71,10 @@ export function App() {
   roomPlayersRef.current = roomPlayers;
   const [roomCapacity, setRoomCapacity] = useState(2);
   const [roomError, setRoomError] = useState<string | null>(null);
+  const [publicRooms, setPublicRooms] = useState<PublicRoom[]>([]);
+  const [publicRoomsError, setPublicRoomsError] = useState<string | null>(null);
+  const [publicRoomsLoading, setPublicRoomsLoading] = useState(false);
+  const publicListingUidRef = useRef<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [soloEvaluation, setSoloEvaluation] = useState<GuessEvaluation | null>(null);
   const [soloScore, setSoloScore] = useState(0);
@@ -101,6 +105,36 @@ export function App() {
   const incomingGuessHandlerRef = useRef<(playerId: string, guess: DualGuess) => void>(() => undefined);
 
   const timerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!isRoomDirectoryConfigured()) {
+      setPublicRoomsError('Public room listings are not configured yet. Private rooms can still be joined by code.');
+      return;
+    }
+    setPublicRoomsLoading(true);
+    const unsubscribe = subscribePublicRooms(rooms => {
+      setPublicRooms(rooms);
+      setPublicRoomsError(null);
+      setPublicRoomsLoading(false);
+    }, err => {
+      setPublicRoomsError(`Could not load public rooms: ${err.message}`);
+      setPublicRoomsLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (onlineRoom?.role !== 'host' || onlineRoom.visibility !== 'public' || !publicListingUidRef.current) return;
+    const updateListing = () => {
+      void updatePublicRoom(onlineRoom.code, publicListingUidRef.current!, {
+        playerCount: roomPlayers.length,
+        status: onlineRoom.status
+      }).catch(() => undefined);
+    };
+    updateListing();
+    const heartbeat = window.setInterval(updateListing, 30_000);
+    return () => window.clearInterval(heartbeat);
+  }, [onlineRoom?.role, onlineRoom?.visibility, onlineRoom?.code, onlineRoom?.status, roomPlayers.length]);
 
   // Load game
   const loadGame = useCallback(async (filter: RatingFilter, user?: string) => {
@@ -422,7 +456,24 @@ export function App() {
     peerRef.current?.destroy();
     peerRef.current = peer;
 
-    peer.on('open', (peerId) => {
+    peer.on('open', async (peerId) => {
+      if (settings.visibility === 'public') {
+        try {
+          publicListingUidRef.current = await publishPublicRoom({
+            code,
+            hostName: settings.playerName,
+            playerCount: 1,
+            capacity: settings.playerCount,
+            status: 'lobby'
+          });
+        } catch (err) {
+          publicListingUidRef.current = null;
+          setRoomError(err instanceof Error ? err.message : 'Could not publish this room.');
+          setIsConnecting(false);
+          peer.destroy();
+          return;
+        }
+      }
       const host: PlayerProfile = {
         id: peerId,
         name: settings.playerName,
@@ -443,7 +494,7 @@ export function App() {
       setRoomCapacity(settings.playerCount);
       setRoomPlayers([{ id: host.id, name: host.name }]);
       roomPlayersRef.current = [{ id: host.id, name: host.name }];
-      setOnlineRoom({ role: 'host', code, playerId: host.id, status: 'lobby' });
+      setOnlineRoom({ role: 'host', code, playerId: host.id, status: 'lobby', visibility: settings.visibility });
       setScreen('room');
       setIsConnecting(false);
     });
@@ -568,6 +619,10 @@ export function App() {
 
   const handleLeaveRoom = () => {
     roomPlayingRef.current = true;
+    if (onlineRoom?.role === 'host' && onlineRoom.visibility === 'public') {
+      void unpublishPublicRoom(onlineRoom.code).catch(() => undefined);
+      publicListingUidRef.current = null;
+    }
     for (const connection of roomConnectionsRef.current.values()) {
       sendRoomMessage(connection, { type: 'error', message: 'The host closed the room.' });
       connection.close();
@@ -657,6 +712,13 @@ export function App() {
         onLocalMultiplayer={handleStartLocalMultiplayer}
         onCreateRoom={handleCreateRoom}
         onJoinRoom={handleJoinRoom}
+        onBrowseRooms={() => {
+          setPublicRoomsError(isRoomDirectoryConfigured() ? null : 'Public room listings are not configured yet. Private rooms can still be joined by code.');
+          setPublicRoomsLoading(isRoomDirectoryConfigured());
+        }}
+        publicRooms={publicRooms}
+        publicRoomsError={publicRoomsError}
+        publicRoomsLoading={publicRoomsLoading}
         onOpenRules={() => setIsRulesOpen(true)}
         roomError={roomError}
         isConnecting={isConnecting}

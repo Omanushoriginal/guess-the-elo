@@ -7,9 +7,22 @@ A browser chess-rating guessing game, hosted on GitHub Pages.
 - **Singleplayer:** Guess the average of both players’ ratings. Earn 7 points for an exact guess or 3 points within 100 Elo. Play a five-round challenge without a timer.
 - **Multiplayer:** Guess White and Black separately. Each guess scores 7 points within 10 Elo, 5 within 25, and 3 within 100. Multiplayer includes configurable instant-victory rules and 2–5 player matches.
 - **Pass & Play:** Take turns on one device.
-- **Online rooms:** Create a room, share its six-character code, and have friends join from their own devices. The host starts the match after everyone joins.
+- **Private online rooms:** Create a code-only room and share its six-character code with friends.
+- **Public online rooms:** Create a listed room that appears in the public room browser. Players can join from the listing; the host starts after everyone joins.
 
 Online rooms use PeerJS for signaling and WebRTC for peer-to-peer game updates. Players need an internet connection. Some networks block direct peer connections; this static GitHub Pages setup does not include a TURN relay.
+
+### Enable the public room directory
+
+Public room discovery uses Firebase Realtime Database. Private rooms still work with PeerJS when Firebase is not configured.
+
+1. Create a Firebase project and register a Web app.
+2. In Firebase Authentication, enable **Anonymous** sign-in.
+3. Create a Realtime Database and publish the rules from [`database.rules.json`](database.rules.json).
+4. In the GitHub repository, open **Settings → Secrets and variables → Actions → Variables** and add a repository variable named `VITE_FIREBASE_CONFIG`. Set its value to the Web app config JSON as one line, including `apiKey`, `authDomain`, `databaseURL`, `projectId`, `appId`, and the other fields Firebase provides.
+5. Rerun the **Deploy to GitHub Pages** workflow. The build reads that variable and embeds the public Firebase web config in the site.
+
+For local development, put the same JSON on one line in `.env.local` as `VITE_FIREBASE_CONFIG={...}`. Firebase web config is public client configuration; the Realtime Database security rules enforce that each anonymous user can only create, update, or remove their own room listing. Listings are removed when the host leaves and stale listings are hidden after 90 seconds without a heartbeat.
 
 ## Development
 
