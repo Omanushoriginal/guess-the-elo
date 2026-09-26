@@ -40,6 +40,8 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
   const [blackGuess, setBlackGuess] = useState<number>(1400);
   const [isPrivacyLocked, setIsPrivacyLocked] = useState<boolean>(false);
 
+  const isMultiplayer = totalPlayersInRound > 1;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (disabled || isRevealed || whiteGuess <= 0 || blackGuess <= 0) return;
@@ -49,7 +51,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
       blackGuess
     });
 
-    if (totalPlayersInRound > 1 && currentTurnIndex < totalPlayersInRound - 1) {
+    if (isMultiplayer && currentTurnIndex < totalPlayersInRound - 1) {
       setIsPrivacyLocked(true);
       setWhiteGuess(1400);
       setBlackGuess(1400);
@@ -102,7 +104,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-neutral-100 text-base sm:text-lg">
-                  {activePlayer && totalPlayersInRound > 1 ? (
+                  {activePlayer && isMultiplayer ? (
                     <span>
                       <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style={{ backgroundColor: activePlayer.color }} />
                       {activePlayer.name}'s Guess Turn
@@ -111,27 +113,48 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
                     'Guess Both Player Ratings'
                   )}
                 </h3>
-                {totalPlayersInRound > 1 && (
+                {isMultiplayer && (
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-chess-panelLight text-neutral-300 border border-chess-panelBorder">
                     Turn {currentTurnIndex + 1} of {totalPlayersInRound}
                   </span>
                 )}
               </div>
               <p className="text-xs text-neutral-400 mt-0.5">
-                Predict White & Black Elo independently (Max 14 Pts • Exact Hit = Instant Win)
+                {isMultiplayer 
+                  ? 'Multiplayer Tiers: \u226410 (+7 pts) • \u226425 (+5 pts) • \u2264100 (+3 pts)' 
+                  : 'Predict White & Black Elo (Max 14 Pts • Exact Hit = +7 pts)'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-neutral-400 bg-chess-bg px-3 py-1.5 rounded-xl border border-chess-panelBorder">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>$\le$100: <strong className="text-emerald-400">+3 pts each</strong></span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
-              <span>Exact: <strong className="text-amber-400">+7 pts / Instant Win ⚡</strong></span>
-            </span>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400 bg-chess-bg px-3 py-1.5 rounded-xl border border-chess-panelBorder">
+            {isMultiplayer ? (
+              <>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span>&le;10 pts: <strong className="text-amber-400">+7</strong></span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                  <span>&le;25 pts: <strong className="text-cyan-400">+5</strong></span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span>&le;100 pts: <strong className="text-emerald-400">+3</strong></span>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span>Exact: <strong className="text-amber-400">+7 pts</strong></span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span>&le;100: <strong className="text-emerald-400">+3 pts</strong></span>
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -334,7 +357,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
           <div className="text-xs text-neutral-400 flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-chess-accent" />
-            <span>Max Score: <strong>14 points</strong> (7 for White + 7 for Black)</span>
+            <span>Max Round Score: <strong>14 points</strong></span>
           </div>
 
           <button
@@ -342,7 +365,7 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
             disabled={isRevealed || disabled || whiteGuess <= 0 || blackGuess <= 0}
             className="w-full sm:w-auto px-8 py-3 rounded-xl bg-chess-accent hover:bg-chess-accentHover active:scale-[0.99] text-white font-bold text-base shadow-lg shadow-chess-accent/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40"
           >
-            {totalPlayersInRound > 1 && currentTurnIndex < totalPlayersInRound - 1 ? (
+            {isMultiplayer && currentTurnIndex < totalPlayersInRound - 1 ? (
               <>
                 <UserCheck className="w-5 h-5" />
                 <span>Lock In & Pass to Next Player</span>

@@ -6,9 +6,9 @@ import {
   Clock, 
   Trophy, 
   Play, 
-  Flame
+  Flame,
 } from 'lucide-react';
-import type { MatchConfig, PlayerProfile } from '../types/chess';
+import type { MatchConfig, PlayerProfile, InstantWinCondition } from '../types/chess';
 
 interface MatchSetupModalProps {
   isOpen: boolean;
@@ -27,6 +27,34 @@ const PLAYER_COLORS = [
 
 const DEFAULT_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5'];
 
+const INSTANT_WIN_OPTIONS: { id: InstantWinCondition; label: string; desc: string }[] = [
+  { 
+    id: 'either', 
+    label: 'Either White OR Black (1 Guess)', 
+    desc: 'Exact rating on either player triggers instant match victory.' 
+  },
+  { 
+    id: 'both', 
+    label: 'Both White AND Black (Dual Bullseye)', 
+    desc: 'Requires guessing BOTH player ratings exact to trigger instant victory.' 
+  },
+  { 
+    id: 'white_only', 
+    label: 'White Player Only', 
+    desc: 'Only an exact guess on White triggers instant victory.' 
+  },
+  { 
+    id: 'black_only', 
+    label: 'Black Player Only', 
+    desc: 'Only an exact guess on Black triggers instant victory.' 
+  },
+  { 
+    id: 'disabled', 
+    label: 'Disabled (Points Only)', 
+    desc: 'No instant victory. Match is decided purely by total points.' 
+  }
+];
+
 export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
   isOpen,
   onClose,
@@ -43,6 +71,9 @@ export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
   const [totalRounds, setTotalRounds] = useState<number>(currentConfig.totalRounds || 5);
   const [roundDurationMinutes, setRoundDurationMinutes] = useState<number>(
     currentConfig.roundDurationMinutes || 3
+  );
+  const [instantWinCondition, setInstantWinCondition] = useState<InstantWinCondition>(
+    currentConfig.instantWinCondition || 'either'
   );
 
   if (!isOpen) return null;
@@ -70,7 +101,8 @@ export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
       playerCount: count,
       players,
       totalRounds,
-      roundDurationMinutes
+      roundDurationMinutes,
+      instantWinCondition
     });
     onClose();
   };
@@ -90,7 +122,7 @@ export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
           <h2 className="text-xl sm:text-2xl font-black text-white">Custom Match Setup</h2>
         </div>
         <p className="text-xs text-neutral-400 mb-5">
-          Configure player count, rounds (5–10), and round timers (2–10 mins).
+          Configure game mode, player count, rounds (5–10), timers (2–10 mins), and Instant Victory conditions.
         </p>
 
         <form onSubmit={handleStart} className="space-y-5">
@@ -112,7 +144,7 @@ export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
                 <User className="w-5 h-5 text-chess-accent" />
                 <div className="text-left">
                   <div className="font-bold text-sm">Solo Practice</div>
-                  <div className="text-[11px] text-neutral-400">1 Player Challenge</div>
+                  <div className="text-[11px] text-neutral-400">Classic Rules (+7 exact, +3 &le;100)</div>
                 </div>
               </button>
 
@@ -128,7 +160,7 @@ export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
                 <Users className="w-5 h-5 text-amber-400" />
                 <div className="text-left">
                   <div className="font-bold text-sm">Pass & Play Multiplayer</div>
-                  <div className="text-[11px] text-neutral-400">2 to 5 Players</div>
+                  <div className="text-[11px] text-neutral-400">Tiered Scoring (+7, +5, +3)</div>
                 </div>
               </button>
             </div>
@@ -139,7 +171,7 @@ export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
             <div className="p-4 rounded-xl bg-chess-bg border border-chess-panelBorder space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold uppercase tracking-wider text-neutral-300">
-                  Number of Players
+                  Number of Players (2 to 5)
                 </label>
                 <div className="flex gap-1.5">
                   {[2, 3, 4, 5].map(num => (
@@ -243,13 +275,38 @@ export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
             </div>
           </div>
 
-          {/* Instant Victory Reminder Banner */}
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2.5 text-xs text-amber-300">
-            <Flame className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />
-            <span>
-              <strong>Instant Victory Rule:</strong> If any player guesses an Elo on the head (exact rating), they trigger immediate match victory!
-            </span>
-          </div>
+          {/* Multiplayer Instant Victory Condition Selector */}
+          {mode === 'multiplayer' && <div className="p-4 rounded-xl bg-chess-bg border border-chess-panelBorder space-y-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-300">
+              <Flame className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span>Instant Victory Trigger (Exact Guess)</span>
+            </div>
+
+            <div className="space-y-1.5">
+              {INSTANT_WIN_OPTIONS.map(opt => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setInstantWinCondition(opt.id)}
+                  className={`w-full text-left p-2.5 rounded-lg border transition-all flex items-start gap-2.5 ${
+                    instantWinCondition === opt.id
+                      ? 'bg-amber-500/20 border-amber-400 text-white shadow-sm'
+                      : 'bg-chess-panelLight border-chess-panelBorder text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span className={`w-3.5 h-3.5 rounded-full mt-0.5 border flex items-center justify-center shrink-0 ${
+                    instantWinCondition === opt.id ? 'border-amber-400 bg-amber-400' : 'border-neutral-500'
+                  }`}>
+                    {instantWinCondition === opt.id && <span className="w-1.5 h-1.5 rounded-full bg-black" />}
+                  </span>
+                  <div>
+                    <div className="text-xs font-bold text-neutral-200">{opt.label}</div>
+                    <div className="text-[11px] text-neutral-400">{opt.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>}
 
           {/* Start Button */}
           <button

@@ -68,8 +68,10 @@ export interface PlayerRoundEvaluation {
   isBlackExact: boolean;
   isWhiteWithin100: boolean;
   isBlackWithin100: boolean;
-  isInstantVictory: boolean; // Exact Elo hit triggers instant match victory!
+  isInstantVictory: boolean;
 }
+
+export type InstantWinCondition = 'either' | 'both' | 'white_only' | 'black_only' | 'disabled';
 
 export interface MatchConfig {
   mode: 'solo' | 'multiplayer';
@@ -77,6 +79,7 @@ export interface MatchConfig {
   players: PlayerProfile[];
   totalRounds: number; // 5 to 10
   roundDurationMinutes: number; // 2 to 10
+  instantWinCondition: InstantWinCondition;
 }
 
 export interface GuessEvaluation {

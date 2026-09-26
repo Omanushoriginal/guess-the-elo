@@ -35,7 +35,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           <div>
             <h4 className="text-sm font-black text-amber-300">⚡ INSTANT VICTORY RULE</h4>
             <p className="text-xs text-neutral-200 mt-0.5">
-              If any player guesses a player's Elo <strong>on the head</strong> (exact rating match), they achieve an <strong>Instant Sudden-Death Match Victory</strong> on the spot!
+              In multiplayer, an exact rating guess can trigger an <strong>Instant Match Victory</strong>. Choose whether this requires either rating, both ratings, White only, or Black only in match setup. Solo scoring and play are unchanged.
             </p>
           </div>
         </div>
@@ -51,7 +51,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
             <div>
               <h4 className="text-xs font-bold text-amber-300">Exact Rating — 7 Points Each</h4>
               <p className="text-[11px] text-neutral-300 mt-0.5">
-                Exact White Guess = +7 pts • Exact Black Guess = +7 pts (triggers Instant Win!).
+                In multiplayer, guesses within 10 Elo earn +7 points per player. Solo exact guesses still earn +7 points.
               </p>
             </div>
           </div>
@@ -59,9 +59,9 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
           <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
             <Award className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-xs font-bold text-emerald-300">Within 100 Elo ($\le 100$) — 3 Points Each</h4>
+              <h4 className="text-xs font-bold text-emerald-300">Multiplayer Tiered Points</h4>
               <p className="text-[11px] text-neutral-300 mt-0.5">
-                If your guess is within $\pm 100$ points of actual rating, earn +3 pts for White and +3 pts for Black.
+                Multiplayer guesses within 25 Elo earn +5; within 100 Elo earn +3. Solo guesses within 100 Elo earn +3.
               </p>
             </div>
           </div>

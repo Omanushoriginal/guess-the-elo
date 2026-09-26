@@ -76,6 +76,23 @@ export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
     }
   }, [instantWinner, evaluations]);
 
+  const getPointsLabel = (diff: number, score: number) => {
+    if (score === 7) {
+      if (diff === 0) return '+7 pts (Exact Hit!)';
+      return `+7 pts (\u226410 pts: \u00B1${diff})`;
+    }
+    if (score === 5) return `+5 pts (\u226425 pts: \u00B1${diff})`;
+    if (score === 3) return `+3 pts (\u2264100 pts: \u00B1${diff})`;
+    return `+0 pts (Off by \u00B1${diff})`;
+  };
+
+  const getPointsColor = (score: number) => {
+    if (score === 7) return '#fbbf24'; // Amber
+    if (score === 5) return '#38bdf8'; // Cyan
+    if (score === 3) return '#34d399'; // Emerald
+    return '#9ca3af'; // Neutral
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto bg-chess-panel border-2 border-chess-panelBorder rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 space-y-6">
       {/* INSTANT VICTORY BANNER */}
@@ -88,10 +105,10 @@ export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
             ⚡ INSTANT MATCH VICTORY! ⚡
           </h2>
           <p className="text-base sm:text-lg text-white font-bold mt-1">
-            <span className="text-amber-400 underline decoration-2">{instantWinner.name}</span> guessed the rating ON THE HEAD!
+            <span className="text-amber-400 underline decoration-2">{instantWinner.name}</span> triggered an Instant Match Victory!
           </p>
           <p className="text-xs text-neutral-300 mt-1 max-w-md mx-auto">
-            A bullseye exact rating guess triggers immediate sudden-death championship victory!
+            A bullseye exact rating match triggered immediate sudden-death championship victory!
           </p>
         </div>
       )}
@@ -191,22 +208,26 @@ export const MultiplayerResultModal: React.FC<MultiplayerResultModalProps> = ({
                 {/* White Guess */}
                 <div className="bg-chess-bg/80 p-2 rounded-lg border border-chess-panelBorder/60">
                   <div className="text-neutral-400 flex items-center justify-between">
-                    <span>White: <strong>{evalItem.whiteGuess}</strong></span>
-                    <span className="font-mono">{evalItem.whiteDiff === 0 ? 'Exact!' : `±${evalItem.whiteDiff}`}</span>
+                    <span>White Guess: <strong>{evalItem.whiteGuess}</strong></span>
+                    <span className="font-mono text-neutral-300">
+                      {evalItem.whiteDiff === 0 ? 'Exact!' : `\u00B1${evalItem.whiteDiff}`}
+                    </span>
                   </div>
-                  <div className="text-[11px] font-bold mt-0.5" style={{ color: evalItem.isWhiteExact ? '#fbbf24' : evalItem.isWhiteWithin100 ? '#34d399' : '#9ca3af' }}>
-                    {evalItem.isWhiteExact ? '+7 pts (Bullseye!)' : evalItem.isWhiteWithin100 ? '+3 pts (<=100)' : '+0 pts'}
+                  <div className="text-[11px] font-bold mt-0.5" style={{ color: getPointsColor(evalItem.whiteScore) }}>
+                    {getPointsLabel(evalItem.whiteDiff, evalItem.whiteScore)}
                   </div>
                 </div>
 
                 {/* Black Guess */}
                 <div className="bg-chess-bg/80 p-2 rounded-lg border border-chess-panelBorder/60">
                   <div className="text-neutral-400 flex items-center justify-between">
-                    <span>Black: <strong>{evalItem.blackGuess}</strong></span>
-                    <span className="font-mono">{evalItem.blackDiff === 0 ? 'Exact!' : `±${evalItem.blackDiff}`}</span>
+                    <span>Black Guess: <strong>{evalItem.blackGuess}</strong></span>
+                    <span className="font-mono text-neutral-300">
+                      {evalItem.blackDiff === 0 ? 'Exact!' : `\u00B1${evalItem.blackDiff}`}
+                    </span>
                   </div>
-                  <div className="text-[11px] font-bold mt-0.5" style={{ color: evalItem.isBlackExact ? '#fbbf24' : evalItem.isBlackWithin100 ? '#34d399' : '#9ca3af' }}>
-                    {evalItem.isBlackExact ? '+7 pts (Bullseye!)' : evalItem.isBlackWithin100 ? '+3 pts (<=100)' : '+0 pts'}
+                  <div className="text-[11px] font-bold mt-0.5" style={{ color: getPointsColor(evalItem.blackScore) }}>
+                    {getPointsLabel(evalItem.blackDiff, evalItem.blackScore)}
                   </div>
                 </div>
               </div>

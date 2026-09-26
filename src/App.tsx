@@ -27,7 +27,8 @@ const DEFAULT_MATCH_CONFIG: MatchConfig = {
     { id: 'player-2', name: 'Player 2', color: '#ef4444', score: 0, exactHits: 0, within100Hits: 0 }
   ],
   totalRounds: 5,
-  roundDurationMinutes: 3
+  roundDurationMinutes: 3,
+  instantWinCondition: 'either'
 };
 
 export function App() {
@@ -118,11 +119,12 @@ export function App() {
   const evaluateRound = useCallback((submittedGuesses: Record<string, DualGuess>) => {
     const whiteActual = currentGame.white.rating;
     const blackActual = currentGame.black.rating;
+    const isMultiplayer = matchConfig.mode === 'multiplayer';
 
     let foundInstantWinner: PlayerProfile | null = null;
 
     const roundEvaluations: PlayerRoundEvaluation[] = matchConfig.players.map((player) => {
-      const guess = submittedGuesses[player.id] || { whiteGuess: 1200, blackGuess: 1200 };
+      const guess = submittedGuesses[player.id] || { whiteGuess: 1400, blackGuess: 1400 };
       
       const whiteDiff = Math.abs(guess.whiteGuess - whiteActual);
       const blackDiff = Math.abs(guess.blackGuess - blackActual);
@@ -130,15 +132,49 @@ export function App() {
       const isWhiteExact = guess.whiteGuess === whiteActual;
       const isBlackExact = guess.blackGuess === blackActual;
 
-      const isWhiteWithin100 = !isWhiteExact && whiteDiff <= 100;
-      const isBlackWithin100 = !isBlackExact && blackDiff <= 100;
+      let whiteScore = 0;
+      let blackScore = 0;
 
-      const whiteScore = isWhiteExact ? 7 : isWhiteWithin100 ? 3 : 0;
-      const blackScore = isBlackExact ? 7 : isBlackWithin100 ? 3 : 0;
+      if (isMultiplayer) {
+        // Multiplayer scoring: +7 if <= 10 rating points, +5 if <= 25, +3 if <= 100
+        if (whiteDiff <= 10) whiteScore = 7;
+        else if (whiteDiff <= 25) whiteScore = 5;
+        else if (whiteDiff <= 100) whiteScore = 3;
+        else whiteScore = 0;
+
+        if (blackDiff <= 10) blackScore = 7;
+        else if (blackDiff <= 25) blackScore = 5;
+        else if (blackDiff <= 100) blackScore = 3;
+        else blackScore = 0;
+      } else {
+        // Solo scoring (unchanged): +7 for exact (diff == 0), +3 for <= 100
+        whiteScore = isWhiteExact ? 7 : whiteDiff <= 100 ? 3 : 0;
+        blackScore = isBlackExact ? 7 : blackDiff <= 100 ? 3 : 0;
+      }
+
       const totalScore = whiteScore + blackScore;
 
-      // INSTANT VICTORY: Exact match on either player
-      const isInstantVictory = isWhiteExact || isBlackExact;
+      // Determine if this player triggered Instant Victory based on user's chosen condition
+      let isInstantVictory = false;
+      switch (isMultiplayer ? matchConfig.instantWinCondition : 'disabled') {
+        case 'both':
+          isInstantVictory = isWhiteExact && isBlackExact;
+          break;
+        case 'white_only':
+          isInstantVictory = isWhiteExact;
+          break;
+        case 'black_only':
+          isInstantVictory = isBlackExact;
+          break;
+        case 'disabled':
+          isInstantVictory = false;
+          break;
+        case 'either':
+        default:
+          isInstantVictory = isWhiteExact || isBlackExact;
+          break;
+      }
+
       if (isInstantVictory && !foundInstantWinner) {
         foundInstantWinner = player;
       }
@@ -158,8 +194,8 @@ export function App() {
         totalScore,
         isWhiteExact,
         isBlackExact,
-        isWhiteWithin100,
-        isBlackWithin100,
+        isWhiteWithin100: whiteDiff <= 100,
+        isBlackWithin100: blackDiff <= 100,
         isInstantVictory
       };
     });
@@ -188,12 +224,11 @@ export function App() {
     } else if (currentRound >= matchConfig.totalRounds) {
       setIsMatchOver(true);
     }
-  }, [currentGame, matchConfig.players, matchConfig.totalRounds, currentRound]);
+  }, [currentGame, matchConfig.players, matchConfig.totalRounds, matchConfig.mode, matchConfig.instantWinCondition, currentRound]);
 
   // Handle timeout auto-submit
   const handleTimeoutAutoSubmit = () => {
     if (isRevealed) return;
-    // Fill remaining players with default 1400 guess
     const filledGuesses = { ...playerGuesses };
     matchConfig.players.forEach(p => {
       if (!filledGuesses[p.id]) {
@@ -216,11 +251,9 @@ export function App() {
     };
     setPlayerGuesses(updatedGuesses);
 
-    // If more players remain in this round, advance turn
     if (currentTurnPlayerIndex < matchConfig.players.length - 1) {
       setCurrentTurnPlayerIndex(idx => idx + 1);
     } else {
-      // All players locked in their guesses!
       evaluateRound(updatedGuesses);
     }
   };
@@ -354,7 +387,7 @@ export function App() {
       <footer className="w-full bg-chess-panel border-t border-chess-panelBorder py-4 text-center text-xs text-neutral-500">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>Guess The Elo • 2–5 Player Multiplayer & Solo Practice</span>
-          <span>Max 14 pts/round (7 White + 7 Black) • Exact hit = Instant Victory ⚡</span>
+          <span>Multiplayer: &le;10 (+7 pts) | &le;25 (+5 pts) | &le;100 (+3 pts) • Instant Win on Exact Hit ⚡</span>
         </div>
       </footer>
 
