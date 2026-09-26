@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Target, Sparkles, ArrowRight } from 'lucide-react';
 
 interface GuessInputProps {
@@ -23,35 +23,38 @@ export const GuessInput: React.FC<GuessInputProps> = ({
   disabled = false
 }) => {
   const [guessValue, setGuessValue] = useState<number>(1400);
+  const [guessInput, setGuessInput] = useState('1400');
 
-  // Reset or adjust if needed
-  useEffect(() => {
-    if (!isRevealed) {
-      // Keep or keep default
-    }
-  }, [isRevealed]);
+  const setValidGuess = (value: number) => {
+    const next = Math.max(100, Math.min(3800, value));
+    setGuessValue(next);
+    setGuessInput(String(next));
+  };
+
+  const isValidGuessInput = /^\d{3,4}$/.test(guessInput)
+    && Number(guessInput) >= 100
+    && Number(guessInput) <= 3800;
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setGuessValue(Number(e.target.value));
+    setValidGuess(Number(e.target.value));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value, 10);
-    if (!isNaN(val)) {
-      setGuessValue(Math.max(100, Math.min(3800, val)));
-    } else if (e.target.value === '') {
-      setGuessValue(0);
+    const value = e.target.value;
+    setGuessInput(value);
+    if (/^\d{3,4}$/.test(value) && Number(value) >= 100 && Number(value) <= 3800) {
+      setGuessValue(Number(value));
     }
   };
 
   const adjustValue = (delta: number) => {
-    setGuessValue(prev => Math.max(100, Math.min(3800, prev + delta)));
+    setValidGuess(guessValue + delta);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (disabled || isRevealed || guessValue <= 0) return;
-    onSubmit(guessValue);
+    if (disabled || isRevealed || !isValidGuessInput) return;
+    onSubmit(Number(guessInput));
   };
 
   // Determine descriptive rating title for the slider position
@@ -116,9 +119,10 @@ export const GuessInput: React.FC<GuessInputProps> = ({
                 type="number"
                 min="100"
                 max="3800"
-                value={guessValue || ''}
+                value={guessInput}
                 onChange={handleInputChange}
                 disabled={isRevealed || disabled}
+                step="1"
                 className="w-32 sm:w-36 text-center text-3xl sm:text-4xl font-black font-mono bg-chess-bg text-white border-2 border-chess-accent/60 rounded-xl py-2 px-3 focus:outline-none focus:border-chess-accent focus:ring-2 focus:ring-chess-accent/40 shadow-inner disabled:opacity-50"
               />
               <span className="absolute right-3 text-xs text-neutral-500 font-mono uppercase pointer-events-none">
@@ -153,7 +157,7 @@ export const GuessInput: React.FC<GuessInputProps> = ({
 
             <button
               type="submit"
-              disabled={isRevealed || disabled || guessValue <= 0}
+              disabled={isRevealed || disabled || !isValidGuessInput}
               className="w-full sm:w-auto px-7 py-3 rounded-xl bg-chess-accent hover:bg-chess-accentHover active:scale-[0.98] text-white font-bold text-base shadow-lg shadow-chess-accent/20 flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
             >
               <Sparkles className="w-5 h-5 fill-current" />
@@ -194,7 +198,7 @@ export const GuessInput: React.FC<GuessInputProps> = ({
               key={tier.value}
               type="button"
               disabled={isRevealed || disabled}
-              onClick={() => setGuessValue(tier.value)}
+              onClick={() => setValidGuess(tier.value)}
               className={`px-2.5 py-1 text-xs font-mono rounded-lg border transition-all ${
                 Math.abs(guessValue - tier.value) < 50
                   ? 'bg-chess-accent/20 border-chess-accent text-chess-accent font-bold'

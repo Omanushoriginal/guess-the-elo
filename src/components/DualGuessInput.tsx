@@ -61,9 +61,9 @@ export const DualGuessInput: React.FC<DualGuessInputProps> = ({
     setBlackGuessInput(String(next));
   };
   const isValidGuessInput = (value: string) => {
-    if (!value.trim()) return false;
+    if (!/^\d{3,4}$/.test(value)) return false;
     const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed >= 100 && parsed <= 3800;
+    return parsed >= 100 && parsed <= 3800;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
